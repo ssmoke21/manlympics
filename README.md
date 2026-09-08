@@ -4,10 +4,10 @@ A pixel-art arcade game where you compete against six opponents across eight
 short events. Every event is a suburban dad chore, treated with the gravity of
 an Olympic final.
 
-**Build status: foundation plus three events.** The engine, art system, sound,
-title screen and menus are done, along with *The Pour*, *Grill Sergeant* and
-*Splitting Image*. The tournament frame, the six opponents and the remaining
-five events are still to come.
+**Build status: foundation plus four events.** The engine, art system, sound,
+title screen and menus are done, along with *The Pour*, *Grill Sergeant*,
+*Splitting Image* and *Cut Above*. The tournament frame, the six opponents and
+the remaining four events are still to come.
 
 ---
 
@@ -58,6 +58,12 @@ No event needs anything beyond the direction keys plus one action button.
   audio tells — the colour of the patty, juices welling up right as it comes
   due, smoke once it has gone too far, and a sizzle that rises in pitch. The
   patties go on staggered so they queue up rather than all coming due at once.
+- **Cut Above**, the mowing event: a top-down yard, and a mower with momentum
+  and a real turning radius. One tank of petrol instead of a clock, so a wasteful
+  route costs you — and space shuts the engine off to bank what is left, making
+  "go back for that missed strip or take the petrol" a real decision. Sprinkler
+  heads, a solid garden gnome and a wandering dog get in the way, and every
+  patch you missed flashes at the end.
 - The engine underneath: 320×180 at a whole-number scale, fixed 60 FPS, scene
   stack, particle pool, screen shake, hit-stop.
 - Every sprite, letter and sound generated in code. There is not a single image
@@ -74,7 +80,7 @@ weight it uses. There are no tuning numbers buried anywhere else.
 | Splitting Image (chopping) | `js/events/chopping.js` | `TOTAL_SWINGS` (how long the event is). **Too hard to aim?** `SWEET_HALF` (bigger = easier), `STRIKE_SPEED` (smaller = easier). **Aim not mattering enough?** `QUALITY_CROOKED` (smaller = harsher), `COMBO_BONUS`. **Fatigue too punishing?** `FATIGUE_POWER_FLOOR` towards `1`, `FATIGUE_WOBBLE` towards `0` — either switches off on its own |
 | The Pour | `js/events/pouring.js` | `TILT_TOLERANCE` (bigger = easier), `FOAM_SPLIT` (smaller = easier), `POUR_ALLOWANCE` (more beer in the tap = easier). Chug: `CHUG_DRAIN`, `CHUG_PAR`. The whole drunkenness ramp is the `DRUNK` table, one row per beer |
 | Grill Sergeant | `js/events/grilling.js` | `COOK_RATE` (lower = easier), `PERFECT_BAND` (bigger = easier), `START_STAGGER` (bigger = less overlap = easier). Make the tells more obvious with `BUBBLE_AT`/`BUBBLE_END` and `SMOKE_RATE` |
-| Cut Above | `js/events/mowing.js` | *not built yet (Phase 3)* |
+| Cut Above | `js/events/mowing.js` | `FUEL_MAX` (bigger = easier), `BURN_DRIVE` (smaller = easier), `CUT_RADIUS` (wider deck = easier), `TURN_RATE`/`TURN_LOW` (how tightly it corners). `FUEL_NEEDS_COVERAGE` stops "mow half, keep the petrol" |
 | Death Grip | `js/events/jaropening.js` | *not built yet (Phase 3)* |
 | Back It In | `js/events/parking.js` | *not built yet (Phase 4)* |
 | Choux Business | `js/events/creampuffs.js` | *not built yet (Phase 4)* |
