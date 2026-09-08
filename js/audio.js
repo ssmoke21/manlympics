@@ -183,6 +183,12 @@ ML.sfx = (function () {
         });
       }
     },
+    // the vacuum seal letting go: a hollow pop with a little air behind it
+    thunk: function () {
+      tone({ freq: 90, freqTo: 320, dur: 0.11, type: 'sine', vol: 0.5 });
+      tone({ freq: 240, freqTo: 120, dur: 0.16, type: 'triangle', vol: 0.28, delay: 0.02 });
+      noise({ filter: 'bandpass', freq: 1400, freqTo: 500, dur: 0.18, vol: 0.22, q: 1.4, delay: 0.03 });
+    },
     tick: function () {
       tone({ freq: 900, dur: 0.03, type: 'square', vol: 0.12 });
     },

@@ -4,10 +4,10 @@ A pixel-art arcade game where you compete against six opponents across eight
 short events. Every event is a suburban dad chore, treated with the gravity of
 an Olympic final.
 
-**Build status: foundation plus four events.** The engine, art system, sound,
+**Build status: foundation plus five events.** The engine, art system, sound,
 title screen and menus are done, along with *The Pour*, *Grill Sergeant*,
-*Splitting Image* and *Cut Above*. The tournament frame, the six opponents and
-the remaining four events are still to come.
+*Splitting Image*, *Cut Above* and *Death Grip*. The tournament frame, the six opponents and
+the remaining three events are still to come.
 
 ---
 
@@ -64,6 +64,12 @@ No event needs anything beyond the direction keys plus one action button.
   "go back for that missed strip or take the petrol" a real decision. Sprinkler
   heads, a solid garden gnome and a wandering dog get in the way, and every
   patch you missed flashes at the end.
+- **Death Grip**, the jar event and the shortest in the game: three jars, each
+  a sequence of arrow/space prompts to hit in order before his grip gives out.
+  A wrong key and it slips - back to the start of that jar with the grip still
+  going. The olives hide the prompts you have already pressed. This is the one
+  event that kept its timer, because here the timer IS the mechanic; it is just
+  dressed as his grip failing rather than a stopwatch.
 - The engine underneath: 320×180 at a whole-number scale, fixed 60 FPS, scene
   stack, particle pool, screen shake, hit-stop.
 - Every sprite, letter and sound generated in code. There is not a single image
@@ -81,7 +87,7 @@ weight it uses. There are no tuning numbers buried anywhere else.
 | The Pour | `js/events/pouring.js` | `TILT_TOLERANCE` (bigger = easier), `FOAM_SPLIT` (smaller = easier), `POUR_ALLOWANCE` (more beer in the tap = easier). Chug: `CHUG_DRAIN`, `CHUG_PAR`. The whole drunkenness ramp is the `DRUNK` table, one row per beer |
 | Grill Sergeant | `js/events/grilling.js` | `COOK_RATE` (lower = easier), `PERFECT_BAND` (bigger = easier), `START_STAGGER` (bigger = less overlap = easier). Make the tells more obvious with `BUBBLE_AT`/`BUBBLE_END` and `SMOKE_RATE` |
 | Cut Above | `js/events/mowing.js` | `FUEL_MAX` (bigger = easier), `BURN_DRIVE` (smaller = easier), `CUT_RADIUS` (wider deck = easier), `TURN_RATE`/`TURN_LOW` (how tightly it corners). `FUEL_NEEDS_COVERAGE` stops "mow half, keep the petrol" |
-| Death Grip | `js/events/jaropening.js` | *not built yet (Phase 3)* |
+| Death Grip | `js/events/jaropening.js` | The `JARS` table is the whole difficulty dial — how many inputs each jar needs and how many seconds of grip you get. Then `READY_TIME` (longer look at the sequence) and `SLIP_STALL` |
 | Back It In | `js/events/parking.js` | *not built yet (Phase 4)* |
 | Choux Business | `js/events/creampuffs.js` | *not built yet (Phase 4)* |
 | The One-Tripper | `js/events/groceries.js` | *not built yet (Phase 4)* |
