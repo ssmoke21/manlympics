@@ -4,10 +4,10 @@ A pixel-art arcade game where you compete against six opponents across eight
 short events. Every event is a suburban dad chore, treated with the gravity of
 an Olympic final.
 
-**Build status: foundation plus six events.** The engine, art system, sound,
+**Build status: foundation plus seven events.** The engine, art system, sound,
 title screen and menus are done, along with *The Pour*, *Grill Sergeant*,
-*Splitting Image*, *Cut Above*, *Death Grip* and *Back It In*. The tournament frame, the opponents and
-the last two events are still to come.
+*Splitting Image*, *Cut Above*, *Death Grip*, *Back It In* and *Choux Business*. The tournament frame, the opponents and
+the last event is still to come.
 
 ---
 
@@ -76,6 +76,12 @@ No event needs anything beyond the direction keys plus one action button.
   horn and a HEY! from off screen. Shunts stand in for the clock - every swap
   between drive and reverse counts, the way an examiner counts them, and the
   ones you did not use are worth points. Two attempts, best one counts.
+- **Choux Business**, the cream puff event: pipe twelve puffs, then fill them.
+  The target size shows as a ghost outline for two seconds and is then gone -
+  but you are judged on whether the twelve MATCH EACH OTHER, not on hitting the
+  target. Twelve identical wrong-sized puffs genuinely beat twelve scattered
+  ones on target, and the title card says so up front. Then a nozzle sweeps over
+  each puff: press to stick it in, hold to fill, hold too long and it bursts.
 - The engine underneath: 320×180 at a whole-number scale, fixed 60 FPS, scene
   stack, particle pool, screen shake, hit-stop.
 - Every sprite, letter and sound generated in code. There is not a single image
@@ -95,7 +101,7 @@ weight it uses. There are no tuning numbers buried anywhere else.
 | Cut Above | `js/events/mowing.js` | `FUEL_MAX` (bigger = easier), `BURN_DRIVE` (smaller = easier), `CUT_RADIUS` (wider deck = easier), `TURN_RATE`/`TURN_LOW` (how tightly it corners). `FUEL_NEEDS_COVERAGE` stops "mow half, keep the petrol" |
 | Death Grip | `js/events/jaropening.js` | The `JARS` table is the whole difficulty dial — how many inputs each jar needs and how many seconds of grip you get. Then `READY_TIME` (longer look at the sequence) and `SLIP_STALL` |
 | Back It In | `js/events/parking.js` | `BAY_LENGTH` (bigger = easier), `MAX_STEER` (more lock = tighter circle = easier), `WHEELBASE`, `SHUNTS` (allowance per attempt). `BUMP_PENALTY`/`KERB_PENALTY` for what a clout costs |
-| Choux Business | `js/events/creampuffs.js` | *not built yet (Phase 4)* |
+| Choux Business | `js/events/creampuffs.js` | `SD_ZERO` (bigger = consistency judged more kindly), `PIPE_RATE` (slower = easier to control), `GHOST_TIME`. Filling: `NOZZLE_SPEED`, `FILL_RATE`, `BURST_AT`. The 70/30 split is `CONSISTENCY_WEIGHT`/`ACCURACY_WEIGHT` |
 | The One-Tripper | `js/events/groceries.js` | *not built yet (Phase 4)* |
 
 Changing one event never requires touching another one. Each event file is
