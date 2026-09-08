@@ -1,0 +1,15 @@
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor junk
+.vscode/
+.idea/
+*.swp
+
+# Nothing here needs installing, but just in case
+node_modules/
+
+# Local tooling
+.claude/

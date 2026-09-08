@@ -1,0 +1,28 @@
+/* Man-lympics — the page is nothing but a black room with a pixel canvas in it. */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+}
+
+#wrap {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;     /* letterbox bars are just the black body showing through */
+  justify-content: center;
+}
+
+#game {
+  display: block;
+  background: #000;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  /* width/height are set by engine.js to a whole-number multiple of 320x180 */
+}
+
+/* Desktop keyboard game. No touch controls, no responsive breakpoints on purpose. */
