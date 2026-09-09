@@ -3,9 +3,10 @@
   reuses (the backyard backdrop, the 3-second title card, the 3-second result
   card, the pause overlay).
 
-  Phase 1 ships: title screen, mode select, event select, a placeholder result
-  screen and the pause overlay. Tournament standings and the podium arrive in
-  Phase 2 (tournament.js).
+  Title screen, mode select, event select, the Free Play result screen and the
+  pause overlay. The tournament's own screens live in tournament.js; the only
+  join between them is resultsScene() below, which hands the payload over when
+  a tournament is running.
 */
 window.ML = window.ML || {};
 
@@ -169,6 +170,7 @@ ML.ui = (function () {
           if (sel === 0) { ML.sfx.play('confirm'); ML.engine.pop(); }
           else {
             ML.sfx.play('back');
+            if (ML.tournament) ML.tournament.abandon();
             ML.engine.reset(titleScene());
           }
         }
@@ -269,11 +271,11 @@ ML.ui = (function () {
   function modeScene() {
     var t = 0, note = 0;
     var m = menu([
-      { label: 'TOURNAMENT', locked: true, hint: 'ALL EIGHT EVENTS - ARRIVES IN PHASE 2' },
+      { label: 'TOURNAMENT', locked: false, hint: 'ALL EIGHT EVENTS AGAINST ALL SIX RIVALS' },
       { label: 'FREE PLAY', locked: false, hint: 'ONE EVENT, CHASE A PERSONAL BEST' },
       { label: 'VERSUS', locked: true, hint: 'TWO ON ONE KEYBOARD - ARRIVES IN PHASE 5' }
     ]);
-    m.sel = 1;
+    m.sel = 0;
     return {
       enter: function () { t = 0; },
       update: function (dt) {
@@ -281,7 +283,10 @@ ML.ui = (function () {
         if (note > 0) note -= dt;
         var r = m.handle();
         if (r === 'locked') note = 1.6;
-        if (r === 'go') ML.engine.replace(eventSelectScene());
+        if (r === 'go') {
+          if (m.sel === 0) ML.tournament.begin();
+          else ML.engine.replace(eventSelectScene());
+        }
         if (ML.input.justPressed('escape')) { ML.sfx.play('back'); ML.engine.replace(titleScene()); }
       },
       draw: function (ctx) {
@@ -365,6 +370,12 @@ ML.ui = (function () {
      opponent score reveals and the standings table.
   */
   function resultsScene(payload) {
+    // If a tournament is running, the score goes to the tournament instead.
+    // This is the ONLY place the two flows meet, which is why no event file
+    // has to know which mode it is being played in.
+    if (ML.tournament && ML.tournament.active()) {
+      return ML.tournament.eventResultScene(payload);
+    }
     var t = 0;
     var best = null;
     return {
@@ -412,7 +423,7 @@ ML.ui = (function () {
           var msg = best.isNew ? 'NEW PERSONAL BEST!' : 'PERSONAL BEST: ' + best.value;
           ML.font.drawTextCentered(msg, W / 2, y + h - 34, best.isNew ? P.ACCENT : P.STEEL, ctx);
         }
-        ML.font.drawTextCentered('OPPONENT SCORES ARRIVE IN PHASE 2', W / 2, y + h - 22, P.GRAY, ctx);
+        ML.font.drawTextCentered('FREE PLAY - NO OPPONENTS', W / 2, y + h - 22, P.GRAY, ctx);
         if (Math.floor(t * 1.6) % 2 === 0) {
           ML.font.drawTextCentered('PRESS ENTER', W / 2, y + h - 11, P.AMBER, ctx);
         }

@@ -4,10 +4,12 @@ A pixel-art arcade game where you compete against six opponents across eight
 short events. Every event is a suburban dad chore, treated with the gravity of
 an Olympic final.
 
-**Build status: all eight events built.** The engine, art system, sound, title
-screen and menus are done, along with every event: *The Pour*, *Grill Sergeant*,
-*Splitting Image*, *Cut Above*, *Death Grip*, *Back It In*, *Choux Business* and
-*The One-Tripper*. The tournament frame and the opponents are still to come.
+**Build status: all eight events, plus the tournament.** The engine, art system,
+sound, title screen and menus are done, along with every event: *The Pour*,
+*Grill Sergeant*, *Splitting Image*, *Cut Above*, *Death Grip*, *Back It In*,
+*Choux Business* and *The One-Tripper*. Tournament mode runs all eight against
+the six rivals, with standings between events and a podium at the end. Versus
+(two humans on one keyboard) is the remaining mode.
 
 ---
 
@@ -40,9 +42,14 @@ No event needs anything beyond the direction keys plus one action button.
 
 ## What's built
 
-- **Title screen → mode select → event select → event → result screen.**
-  Tournament and Versus are visible but locked; Free Play works and saves a
-  personal best per event to `localStorage`.
+- **Tournament mode.** All eight events in order against the six rivals. After
+  each one the opponents' scores tick in one at a time, then a standings screen
+  shows cumulative medal points (10-8-6-5-4-3-2-1) with your row highlighted and
+  the rows sliding to their new places rather than snapping. A podium closes it
+  out. The rivals never actually play the minigames - their scores are rolled
+  from four stats against per-event weights, in `js/opponents.js`.
+- **Free Play.** Pick any single event and chase a personal best, saved to
+  `localStorage`. Versus is still locked.
 - **The Pour**, the beer event: three beers, each poured then chugged. Hold
   space to pour and tilt the glass with the arrows — the right angle slides
   towards vertical as the glass fills, and beer that froths up is beer you do
@@ -113,6 +120,8 @@ weight it uses. There are no tuning numbers buried anywhere else.
 | Death Grip | `js/events/jaropening.js` | The `JARS` table is the whole difficulty dial — how many inputs each jar needs and how many seconds of grip you get. Then `READY_TIME` (longer look at the sequence) and `SLIP_STALL` |
 | Back It In | `js/events/parking.js` | `BAY_LENGTH` (bigger = easier), `MAX_STEER` (more lock = tighter circle = easier), `WHEELBASE`, `SHUNTS` (allowance per attempt). `BUMP_PENALTY`/`KERB_PENALTY` for what a clout costs |
 | Choux Business | `js/events/creampuffs.js` | `SD_ZERO` (bigger = consistency judged more kindly), `PIPE_RATE` (slower = easier to control), `GHOST_TIME`. Filling: `NOZZLE_SPEED`, `FILL_RATE`, `BURST_AT`. The 70/30 split is `CONSISTENCY_WEIGHT`/`ACCURACY_WEIGHT` |
+| *the rivals* | `js/opponents.js` | `BASE` and `PER_POINT` are the whole field's strength - lower them and everyone gets beatable. `WEIGHTS` says which stats each event rewards (each row must total 1.0). Individual quirks are one small function each in `QUIRKS` |
+| *the tournament* | `js/tournament.js` | `MEDAL_POINTS`, `EVENT_ORDER`, and the pacing of the reveals (`REVEAL_GAP`, `TICKER_TIME`, `ROW_SLIDE`) |
 | The One-Tripper | `js/events/groceries.js` | `DRIFT_EXP` decides whether greed is punished - at 1 the cost of extra bags is a straight line and taking the lot is always correct, above 1 every player has a load they cannot hold. Then `TIP_GAIN` (how eagerly he falls), `CORRECT_FORCE`, `DRIFT_BASE` (the wobble with six or fewer). `MULT_STEP` is deliberately small so extra bags pay by BEING extra bags |
 
 Changing one event never requires touching another one. Each event file is
@@ -145,6 +154,8 @@ js/
   audio.js      WebAudio sound effects, all synthesized
   engine.js     game loop, scene stack, input, particles, shake, hit-stop
   ui.js         title screen, menus, title/result cards, pause overlay
+  opponents.js  the six rivals and the maths that rolls their scores
+  tournament.js mode flow, standings, medal points, podium
   events/
     chopping.js one file per event
   main.js       boots everything
@@ -206,9 +217,17 @@ nothing to compile.
 
 ## Notes for the next phase
 
-All eight events are done, so the next phase is the tournament frame.
+Still to come: **Versus** (two humans on one keyboard, eight-way standings) and
+a polish pass - scene transitions, announcer bursts between events, and
+difficulty balancing.
 
-Phase 2 adds `js/opponents.js` and `js/tournament.js`: the six AI competitors
-(whose scores are generated statistically rather than by actually playing),
-medal points, the standings screen and the podium ceremony. Remember to add the
-new `<script>` tags to `index.html` in dependency order.
+On balancing: as it stands the field averages **624** across all eight events,
+and scoring around **730 in every event** wins the tournament about half the
+time. 700 a go takes a podium but rarely the top step; 650 finishes about
+fifth. The dial for all of it is `BASE` (and `PER_POINT`) at the top of
+`js/opponents.js` - it moves every rival at once.
+
+Not every event is equally stiff. The rivals are strongest at *The One-Tripper*
+and *Splitting Image* (both weight power, which most of the roster has) and
+weakest at *Choux Business* and *Back It In* (both weight precision, which most
+of them do not). Those two are where a tournament is won.
