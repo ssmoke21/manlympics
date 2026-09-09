@@ -56,6 +56,10 @@ ML.tournament = (function () {
     TICKER_TIME: 0.30,       // how long a score spins before it settles
     VERDICT_DELAY: 0.5,      // beat after the last one before the verdict
 
+    // ---- the announcer between events
+    ANNOUNCE_TIME: 2.0,      // how long the shout stays up
+    ANNOUNCE_MIN: 0.45,      // ENTER cannot skip it before this
+
     // ---- handing the keyboard over
     HANDOVER_DWELL: 0.8,     // so nobody skips past it by accident
 
@@ -116,6 +120,7 @@ ML.tournament = (function () {
       order: CONFIG.EVENT_ORDER.slice(),
       raw: {},            // id -> array of raw scores, one per round
       flags: {},          // id -> array of flag objects from opponents.js
+      recs: {},           // id -> array of record results, for the BEST! flag
       rolled: {},         // rounds where the rivals have already posted
       revisedRounds: {},  // rounds already meddled with, so it happens once
       caught: 0,
@@ -125,6 +130,7 @@ ML.tournament = (function () {
     for (var i = 0; i < c.length; i++) {
       state.raw[c[i].id] = [];
       state.flags[c[i].id] = [];
+      state.recs[c[i].id] = [];
     }
     launchNext();
   }
@@ -148,7 +154,7 @@ ML.tournament = (function () {
       return;
     }
     state.turn = 0;
-    launchEvent();
+    ML.engine.replace(announcerScene());
   }
 
   function rollOpponents() {
@@ -254,10 +260,11 @@ ML.tournament = (function () {
      hands: the first human's score is banked and the same event is set up
      again, and only when the last human has played do the rivals post.
   */
-  function eventResultScene(payload) {
+  function eventResultScene(payload, rec) {
     var id = state.humans[state.turn];
     state.raw[id][state.round] = Math.round(ML.clamp(payload.score || 0, 0, 1000));
     state.flags[id][state.round] = {};
+    state.recs[id][state.round] = rec || null;
 
     if (state.turn + 1 < state.humans.length) {
       var justPlayed = state.turn;
@@ -408,8 +415,13 @@ ML.tournament = (function () {
               var m = medalFor(placeOf[c.id]);
               if (m) ML.drawSprite(m, 16, y - 3, null, ctx);
               else ML.font.drawText(String(placeOf[c.id]), 18, y, P.GRAY, ctx);
-              var note = noteFor(state.flags[c.id][r]);
-              if (note) ML.font.drawText(note.text, 244, y, note.col, ctx);
+              var rec = isPlayer ? state.recs[c.id][r] : null;
+              if (rec && rec.isNew) {
+                ML.font.drawText('BEST!', 244, y, P.ACCENT, ctx);
+              } else {
+                var note = noteFor(state.flags[c.id][r]);
+                if (note) ML.font.drawText(note.text, 244, y, note.col, ctx);
+              }
             }
           }
         }
@@ -610,6 +622,7 @@ ML.tournament = (function () {
     var top3 = finalTable.slice(0, 3);
     var shown = 0;
     var chime = {};
+    var tourRec = null;
 
     // 2nd on the left, 1st in the middle and highest, 3rd on the right
     var SLOTS = [
@@ -630,7 +643,21 @@ ML.tournament = (function () {
 
     return {
       key: 'tournament_podium',
-      enter: function () { ML.engine.clearParticles(); ML.sfx.play('crowd_cheer'); },
+      enter: function () {
+        ML.engine.clearParticles();
+        ML.sfx.play('crowd_cheer');
+        // The best-placed human is what goes on the board. With two players
+        // that is a shared household record, which is the point of it.
+        if (ML.records) {
+          var bestHuman = null;
+          for (var i = 0; i < finalTable.length; i++) {
+            if (finalTable[i].isPlayer) { bestHuman = finalTable[i]; break; }
+          }
+          if (bestHuman) {
+            tourRec = ML.records.submitTournament(bestHuman.points, bestHuman.place);
+          }
+        }
+      },
 
       update: function (dt) {
         t += dt;
@@ -696,9 +723,91 @@ ML.tournament = (function () {
           else line = champ.name + ' - CHAMPION OF THE SUBURBS';
           ML.font.drawTextShadowCentered(line, W / 2, 24,
             champ.isPlayer ? P.AMBER : P.CREAM, ctx);
+          if (tourRec && tourRec.isNew) {
+            ML.font.drawTextShadowCentered('NEW BEST: ' + tourRec.points + ' POINTS',
+              W / 2, 36, P.ACCENT, ctx);
+          }
           if (Math.floor(t * 1.6) % 2 === 0) {
             ML.font.drawTextShadowCentered('PRESS ENTER', W / 2, 170, P.AMBER, ctx);
           }
+        }
+      }
+    };
+  }
+
+  // ======================================================= THE ANNOUNCER
+  /*
+     A short shout before each event. It exists to stop the tournament reading
+     as eight unrelated minigames stapled together - it names the event, says
+     something about it, and tells you where you stand before you play it.
+  */
+  var SHOUTS = {
+    pouring: ['A CLEAN HEAD AND A CLEAN CHIN.', 'THE TAP IS OPEN.'],
+    grilling: ['SIX PATTIES AND NO METERS.', 'READ THE MEAT.'],
+    chopping: ['TEN SWINGS. THAT IS ALL.', 'WOOD DOES NOT SPLIT ITSELF.'],
+    mowing: ['ONE TANK. ONE LAWN.', 'MIND THE GNOME.'],
+    jaropening: ['THE LID IS WINNING.', 'ALL IN THE WRIST.'],
+    parking: ['REVERSE. STRAIGHTEN. BREATHE.', 'THE KERB IS WATCHING.'],
+    creampuffs: ['TWELVE OF THE SAME.', 'MATCHING BEATS PERFECT.'],
+    groceries: ['ONE TRIP OR NOTHING.', 'EVERY BAG PAST SIX IS A BAG PAST SENSE.']
+  };
+
+  function standingLine() {
+    if (state.round === 0) return 'EIGHT EVENTS. ONE DRIVEWAY.';
+    var table = standingsThrough(state.round - 1);
+    var best = null, i;
+    for (i = 0; i < table.length; i++) if (table[i].isPlayer) { best = table[i]; break; }
+    if (!best) return '';
+    var last = (state.round === state.order.length - 1);
+    if (best.place === 1) return last ? 'TOP OF THE TABLE. ONE TO GO.' : 'YOU ARE TOP OF THE TABLE.';
+    var gap = table[0].points - best.points;
+    if (best.place === table.length) return 'SOMEBODY HAS TO BE LAST.';
+    if (gap <= 6) return gap + ' POINTS OFF THE LEAD.';
+    if (last) return 'LAST EVENT OF THE DAY.';
+    return table[0].name + ' LEADS BY ' + gap + '.';
+  }
+
+  function announcerScene() {
+    var t = 0;
+    var key = state.order[state.round];
+    var lines = SHOUTS[key] || [''];
+    var shout = lines[(Math.random() * lines.length) | 0];
+    var standing = standingLine();
+
+    return {
+      key: 'tournament_announcer',
+      enter: function () { ML.engine.clearParticles(); ML.sfx.play('reveal'); },
+
+      update: function (dt) {
+        t += dt;
+        if (ML.input.justPressed('escape')) { ML.engine.push(ML.ui.pauseScene()); return; }
+        var skipped = t > CONFIG.ANNOUNCE_MIN
+          && (ML.input.justPressed('enter') || ML.input.justPressed('space'));
+        if (t >= CONFIG.ANNOUNCE_TIME || skipped) launchEvent();
+      },
+
+      draw: function (ctx) {
+        ML.ui.backdrop(ctx, t, 124);
+        ML.ui.dither(ctx);
+
+        // A solid band across the middle. Dither alone left the standings line
+        // sitting on top of the fence, which was almost unreadable.
+        var top = 34, h = state.players === 2 ? 108 : 96;
+        ML.engine.rect(0, top, W, h, P.CHARCOAL, ctx);
+        ML.engine.rect(0, top, W, 1, P.CREAM, ctx);
+        ML.engine.rect(0, top + h - 1, W, 1, P.CREAM, ctx);
+        ML.engine.rect(0, top + 2, W, 1, P.GRAY, ctx);
+
+        ML.font.drawTextCentered('EVENT ' + (state.round + 1)
+          + ' OF ' + state.order.length, W / 2, top + 10, P.AMBER, ctx);
+        ML.ui.bigTextWavy(eventName(key), W / 2, top + 24, P.ACCENT, 2, t, 1.4, ctx);
+        ML.font.drawTextCentered(shout, W / 2, top + 56, P.CREAM, ctx);
+        if (standing) {
+          ML.engine.rect(60, top + 70, 200, 1, P.GRAY, ctx);
+          ML.font.drawTextCentered(standing, W / 2, top + 78, P.STEEL, ctx);
+        }
+        if (state.players === 2) {
+          ML.font.drawTextCentered('PLAYER 1 FIRST', W / 2, top + 92, seatColour(0), ctx);
         }
       }
     };
@@ -715,6 +824,7 @@ ML.tournament = (function () {
     rankOf: rankOf,
     standingsThrough: standingsThrough,
     eventResultScene: eventResultScene,
+    announcerScene: announcerScene,
     standingsScene: standingsScene,
     podiumScene: podiumScene
   };

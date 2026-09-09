@@ -98,6 +98,20 @@ ML.engine = (function () {
   var acc = 0, last = 0, running = false;
   var shakeI = 0, shakeT = 0, shakeDur = 0;
   var freezeFrames = 0;
+
+  /*
+     Scene transitions. Swapping a scene used to be a hard cut, which made the
+     game feel like a slideshow of unrelated screens. Every replace() and
+     reset() now retracts a set of horizontal bands off the new screen -
+     alternate bands leave in opposite directions, which is cheap, stays inside
+     the palette, and needs nothing at all from the scenes themselves.
+
+     push() and pop() deliberately do NOT wipe: those are the pause overlay
+     going up and coming down, and a curtain there would just be in the way.
+  */
+  var WIPE_TIME = 0.26;
+  var WIPE_BANDS = 6;
+  var wipeT = 0;
   var particles = [];
   var pIndex = 0;
 
@@ -139,6 +153,7 @@ ML.engine = (function () {
     }
 
     if (shakeT > 0) shakeT -= dt;
+    if (wipeT > 0) wipeT -= dt;
     ML.input.endFrame();
   }
 
@@ -165,6 +180,21 @@ ML.engine = (function () {
       if (scenes[j].draw) scenes[j].draw(ctx);
     }
     ctx.restore();
+    drawWipe();
+  }
+
+  function drawWipe() {
+    if (wipeT <= 0) return;
+    var p = wipeT / WIPE_TIME;               // 1 = fully covered, 0 = gone
+    p = p * p;                               // snaps away at the end
+    var bandH = Math.ceil(H / WIPE_BANDS);
+    ctx.fillStyle = ML.palette.hex(ML.palette.INK);
+    for (var b = 0; b < WIPE_BANDS; b++) {
+      var w = Math.round(W * p);
+      if (w <= 0) continue;
+      var x = (b % 2 === 0) ? 0 : W - w;     // alternate bands leave opposite ways
+      ctx.fillRect(x, b * bandH, w, bandH);
+    }
   }
 
   function frame(ts) {
@@ -225,12 +255,14 @@ ML.engine = (function () {
       if (old && old.exit) old.exit();
       scenes.push(s);
       if (s.enter) s.enter();
+      wipeT = WIPE_TIME;
     },
     // Throw away everything and start fresh (used by "quit to title").
     reset: function (s) {
       while (scenes.length) { var o = scenes.pop(); if (o && o.exit) o.exit(); }
       scenes.push(s);
       if (s.enter) s.enter();
+      wipeT = WIPE_TIME;
     },
     top: function () { return scenes[scenes.length - 1]; },
     depth: function () { return scenes.length; },
@@ -245,6 +277,9 @@ ML.engine = (function () {
         shakeT = duration;
       }
     },
+    // Lets a scene ask for the curtain by hand (the announcer uses it).
+    wipe: function () { wipeT = WIPE_TIME; },
+
     hitstop: function (frames) {
       freezeFrames = Math.max(freezeFrames, frames | 0);
     },

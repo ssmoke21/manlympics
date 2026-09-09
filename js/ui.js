@@ -275,7 +275,9 @@ ML.ui = (function () {
         hint: 'ALL EIGHT EVENTS AGAINST ALL SIX RIVALS' },
       { label: 'TOURNAMENT - TWO PLAYERS', locked: false, players: 2,
         hint: 'TAKE TURNS. THE RIVALS STILL PLAY.' },
-      { label: 'FREE PLAY', locked: false, hint: 'ONE EVENT, CHASE A PERSONAL BEST' }
+      { label: 'FREE PLAY', locked: false, hint: 'ONE EVENT, CHASE A PERSONAL BEST' },
+      { label: 'RECORDS', locked: false, records: true,
+        hint: 'THE TOP SCORES ON THIS MACHINE' }
     ]);
     m.sel = 0;
     return {
@@ -288,6 +290,7 @@ ML.ui = (function () {
         if (r === 'go') {
           var pick = m.items[m.sel];
           if (pick.players) ML.tournament.begin(pick.players);
+          else if (pick.records) ML.engine.replace(recordsScene());
           else ML.engine.replace(eventSelectScene());
         }
         if (ML.input.justPressed('escape')) { ML.sfx.play('back'); ML.engine.replace(titleScene()); }
@@ -302,7 +305,7 @@ ML.ui = (function () {
 
         ML.font.drawTextCentered('CHOOSE YOUR EVENT FORMAT', W / 2, y + 8, P.AMBER, ctx);
         ML.engine.rect(x + 10, y + 18, w - 20, 1, P.GRAY, ctx);
-        drawMenu(m, W / 2, y + 28, ctx, 18);
+        drawMenu(m, W / 2, y + 26, ctx, 15);
         ML.font.drawTextCentered(m.items[m.sel].hint, W / 2, y + 90, P.STEEL, ctx);
         if (note > 0) {
           ML.font.drawTextCentered('NOT IN THIS BUILD YET', W / 2, y + 102, P.ACCENT, ctx);
@@ -366,6 +369,111 @@ ML.ui = (function () {
     };
   }
 
+  // --------------------------------------------------------------- RECORDS
+
+  /*
+     The top score on every event, and on a whole tournament. Backspace held
+     down wipes the lot - held, not tapped, because there is no undo.
+  */
+  function recordsScene() {
+    var t = 0, holdT = 0, wiped = 0;
+    var HOLD_TO_WIPE = 1.2;
+
+    return {
+      key: 'records',
+      enter: function () { t = 0; holdT = 0; ML.engine.clearParticles(); },
+      update: function (dt) {
+        t += dt;
+        if (wiped > 0) wiped -= dt;
+
+        if (ML.records && ML.records.any() && ML.input.isDown('back')) {
+          holdT += dt;
+          if (holdT >= HOLD_TO_WIPE) {
+            ML.records.wipe();
+            holdT = 0;
+            wiped = 1.6;
+            ML.sfx.play('shatter');
+            ML.engine.shake(3, 0.3);
+          }
+        } else if (holdT > 0) {
+          holdT = 0;
+        }
+
+        if (ML.input.justPressed('escape') || ML.input.justPressed('enter')
+          || ML.input.justPressed('space')) {
+          ML.sfx.play('back');
+          ML.engine.replace(modeScene());
+        }
+      },
+      draw: function (ctx) {
+        backdrop(ctx, t, 124);
+        dither(ctx);
+        ML.engine.rect(10, 6, 304, 168, P.INK, ctx);
+        ML.engine.rect(8, 4, 304, 168, P.CHARCOAL, ctx);
+        ML.engine.frameRect(8, 4, 304, 168, P.CREAM, ctx);
+
+        ML.font.drawTextCentered('RECORDS', W / 2, 10, P.AMBER, ctx);
+        ML.engine.rect(18, 20, 284, 1, P.GRAY, ctx);
+
+        if (!ML.records) return;
+
+        if (!ML.records.available()) {
+          ML.font.drawTextCentered('THIS BROWSER IS NOT KEEPING SCORES.', W / 2, 60, P.ORANGE, ctx);
+          ML.font.drawTextCentered('TRY A NORMAL WINDOW, OR A LOCAL SERVER.', W / 2, 74, P.STEEL, ctx);
+          ML.font.drawTextCentered('ESC GOES BACK', W / 2, 160, P.CREAM, ctx);
+          return;
+        }
+
+        for (var i = 0; i < EVENT_LIST.length; i++) {
+          var e = EVENT_LIST[i];
+          var y = 26 + i * 13;
+          var best = ML.records.bestFor(e.key);
+          var built = !!(ML.events && ML.events[e.key]);
+          ML.font.drawText(e.label, 24, y, built ? P.CREAM : P.GRAY, ctx);
+          var txt = best === null ? '- - -' : String(best);
+          var col = best === null ? P.GRAY : (best >= 900 ? P.ACCENT : P.AMBER);
+          ML.font.drawText(txt, 294 - ML.font.width(txt), y, col, ctx);
+        }
+
+        ML.engine.rect(18, 128, 284, 1, P.GRAY, ctx);
+
+        var tot = ML.records.totalOfBests();
+        ML.font.drawText('TOTAL OF YOUR BESTS', 24, 134, P.CREAM, ctx);
+        var tt = tot.total + ' / ' + tot.of;
+        ML.font.drawText(tt, 294 - ML.font.width(tt), 134, P.ACCENT, ctx);
+
+        var bt = ML.records.bestTournament();
+        ML.font.drawText('BEST TOURNAMENT', 24, 146, P.CREAM, ctx);
+        var bs = bt === null ? 'NOT PLAYED YET'
+          : bt.points + ' PTS, ' + ordinalOf(bt.place);
+        ML.font.drawText(bs, 294 - ML.font.width(bs), 146,
+          bt === null ? P.GRAY : (bt.place === 1 ? P.ACCENT : P.AMBER), ctx);
+
+        if (bt && bt.runs) {
+          ML.font.drawText('WON ' + bt.wins + ' OF ' + bt.runs, 24, 158, P.STEEL, ctx);
+        }
+
+        if (wiped > 0) {
+          ML.font.drawTextCentered('WIPED', W / 2, 158, P.ORANGE, ctx);
+        } else if (holdT > 0) {
+          var w = Math.round(120 * (holdT / HOLD_TO_WIPE));
+          ML.engine.rect(100, 156, 120, 6, P.INK, ctx);
+          ML.engine.rect(100, 156, w, 6, P.ORANGE, ctx);
+          ML.engine.frameRect(100, 156, 120, 6, P.CREAM, ctx);
+        } else {
+          ML.font.drawText(ML.records.any() ? 'HOLD BACKSPACE TO WIPE' : 'ESC GOES BACK',
+            294 - ML.font.width(ML.records.any() ? 'HOLD BACKSPACE TO WIPE' : 'ESC GOES BACK'),
+            158, P.STEEL, ctx);
+        }
+      }
+    };
+  }
+
+  function ordinalOf(n) {
+    if (n === null || n === undefined) return '?';
+    return n + (n === 1 ? 'ST' : n === 2 ? 'ND' : n === 3 ? 'RD' : 'TH');
+  }
+
   // ------------------------------------------------- PLACEHOLDER RESULTS
 
   /*
@@ -373,29 +481,20 @@ ML.ui = (function () {
      opponent score reveals and the standings table.
   */
   function resultsScene(payload) {
+    // Every score in the game passes through here, whichever mode it came
+    // from, so this is where the record board gets offered it.
+    var rec = ML.records ? ML.records.submit(payload.key, payload.score) : null;
+
     // If a tournament is running, the score goes to the tournament instead.
     // This is the ONLY place the two flows meet, which is why no event file
     // has to know which mode it is being played in.
     if (ML.tournament && ML.tournament.active()) {
-      return ML.tournament.eventResultScene(payload);
+      return ML.tournament.eventResultScene(payload, rec);
     }
     var t = 0;
-    var best = null;
+    var best = rec ? { value: rec.value, isNew: rec.isNew } : null;
     return {
-      enter: function () {
-        t = 0;
-        ML.sfx.play('fanfare');
-        try {
-          var k = 'ml_best_' + payload.key;
-          var prev = parseInt(window.localStorage.getItem(k) || '0', 10);
-          if (payload.score > prev) {
-            window.localStorage.setItem(k, String(payload.score));
-            best = { value: payload.score, isNew: true };
-          } else {
-            best = { value: prev, isNew: false };
-          }
-        } catch (e) { best = null; }
-      },
+      enter: function () { t = 0; ML.sfx.play('fanfare'); },
       update: function (dt) {
         t += dt;
         if (t > 0.4 && (ML.input.justPressed('enter') || ML.input.justPressed('space'))) {
@@ -447,6 +546,7 @@ ML.ui = (function () {
     titleScene: titleScene,
     modeScene: modeScene,
     eventSelectScene: eventSelectScene,
+    recordsScene: recordsScene,
     resultsScene: resultsScene,
     EVENT_LIST: EVENT_LIST
   };

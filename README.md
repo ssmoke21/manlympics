@@ -4,13 +4,13 @@ A pixel-art arcade game where you compete against six opponents across eight
 short events. Every event is a suburban dad chore, treated with the gravity of
 an Olympic final.
 
-**Build status: all eight events, and every mode.** The engine, art system,
-sound, title screen and menus are done, along with every event: *The Pour*,
-*Grill Sergeant*, *Splitting Image*, *Cut Above*, *Death Grip*, *Back It In*,
-*Choux Business* and *The One-Tripper*. Tournament mode runs all eight against
-the six rivals - on your own, or two of you passing the keyboard - with
-standings between events and a podium at the end. Free Play keeps personal
-bests. What is left is a polish pass.
+**Build status: finished.** All eight events, all the modes, and a records
+board. The engine, art system, sound, title screen and menus are done, along
+with every event: *The Pour*, *Grill Sergeant*, *Splitting Image*, *Cut Above*,
+*Death Grip*, *Back It In*, *Choux Business* and *The One-Tripper*. Tournament
+mode runs all eight against the six rivals - on your own, or two of you passing
+the keyboard - with an announcer before each event, standings between them and
+a podium at the end.
 
 ---
 
@@ -59,8 +59,17 @@ No event needs anything beyond the direction keys plus one action button.
   down to 1 for eighth. **Both players use the same controls**, arrows and space,
   because they never play at once. The two are told apart by colour throughout:
   player one pink, player two orange.
-- **Free Play.** Pick any single event and chase a personal best, saved to
-  `localStorage`. Versus is still locked.
+- **Free Play.** Pick any single event and chase a personal best.
+- **Records.** A top score for every event, the sum of those eight bests out of
+  8000, and the best tournament you have ever finished - points, placing, and
+  how many you have won. Records are set from **both** modes, because a good
+  score is a good score, and in a two player tournament either player can take
+  the machine's record. Hold Backspace on the records screen to wipe it.
+- **An announcer** before every event: what it is, a line about it, and where
+  you stand in the table before you play it.
+- **Scene transitions.** Every screen change retracts a set of horizontal bands
+  rather than hard-cutting. It costs the scenes nothing - the engine does it on
+  `replace()` and `reset()`.
 - **The Pour**, the beer event: three beers, each poured then chugged. Hold
   space to pour and tilt the glass with the arrows — the right angle slides
   towards vertical as the glass fills, and beer that froths up is beer you do
@@ -131,8 +140,9 @@ weight it uses. There are no tuning numbers buried anywhere else.
 | Death Grip | `js/events/jaropening.js` | The `JARS` table is the whole difficulty dial — how many inputs each jar needs and how many seconds of grip you get. Then `READY_TIME` (longer look at the sequence) and `SLIP_STALL` |
 | Back It In | `js/events/parking.js` | `BAY_LENGTH` (bigger = easier), `MAX_STEER` (more lock = tighter circle = easier), `WHEELBASE`, `SHUNTS` (allowance per attempt). `BUMP_PENALTY`/`KERB_PENALTY` for what a clout costs |
 | Choux Business | `js/events/creampuffs.js` | `SD_ZERO` (bigger = consistency judged more kindly), `PIPE_RATE` (slower = easier to control), `GHOST_TIME`. Filling: `NOZZLE_SPEED`, `FILL_RATE`, `BURST_AT`. The 70/30 split is `CONSISTENCY_WEIGHT`/`ACCURACY_WEIGHT` |
-| *the rivals* | `js/opponents.js` | `BASE` and `PER_POINT` are the whole field's strength - lower them and everyone gets beatable. `WEIGHTS` says which stats each event rewards (each row must total 1.0). Individual quirks are one small function each in `QUIRKS` |
-| *the tournament* | `js/tournament.js` | `MEDAL_POINTS`, `EVENT_ORDER`, and the pacing of the reveals (`REVEAL_GAP`, `TICKER_TIME`, `ROW_SLIDE`) |
+| *the rivals* | `js/opponents.js` | Everything is in the `TUNING` block. `BASE` is the blunt dial for the whole field. `DUKE_MIN`/`DUKE_MAX` are his flat band and **must move with `BASE`**, or he wins by default once the others come down. `WEIGHTS` says which stats each event rewards (each row must total 1.0); quirks are one small function each in `QUIRKS` |
+| *records* | `js/records.js` | Which keys are kept and what the overall total is out of |
+| *the tournament* | `js/tournament.js` | `MEDAL_POINTS`, `EVENT_ORDER`, the pacing of the reveals (`REVEAL_GAP`, `TICKER_TIME`, `ROW_SLIDE`) and the announcer (`ANNOUNCE_TIME`, and the `SHOUTS` table) |
 | The One-Tripper | `js/events/groceries.js` | `DRIFT_EXP` decides whether greed is punished - at 1 the cost of extra bags is a straight line and taking the lot is always correct, above 1 every player has a load they cannot hold. Then `TIP_GAIN` (how eagerly he falls), `CORRECT_FORCE`, `DRIFT_BASE` (the wobble with six or fewer). `MULT_STEP` is deliberately small so extra bags pay by BEING extra bags |
 
 Changing one event never requires touching another one. Each event file is
@@ -165,8 +175,9 @@ js/
   audio.js      WebAudio sound effects, all synthesized
   engine.js     game loop, scene stack, input, particles, shake, hit-stop
   ui.js         title screen, menus, title/result cards, pause overlay
+  records.js    top scores per event and per tournament, in localStorage
   opponents.js  the six rivals and the maths that rolls their scores
-  tournament.js mode flow, standings, medal points, podium
+  tournament.js mode flow, announcer, standings, medal points, podium
   events/
     chopping.js one file per event
   main.js       boots everything
@@ -226,10 +237,7 @@ nothing to compile.
 
 ---
 
-## Notes for the next phase
-
-Still to come: a polish pass - scene transitions, announcer bursts between
-events, and difficulty balancing.
+## Notes
 
 Note on the brief: it listed *Versus* as a third mode, described as "two humans
 on one keyboard, taking turns, with the six AI opponents also competing and
@@ -237,11 +245,36 @@ eight-way standings". That is a two player tournament, so rather than build a
 separate mode beside Tournament it became a player count on it. Nothing in the
 description was dropped.
 
-On balancing: as it stands the field averages **624** across all eight events,
-and scoring around **730 in every event** wins the tournament about half the
-time. 700 a go takes a podium but rarely the top step; 650 finishes about
-fifth. The dial for all of it is `BASE` (and `PER_POINT`) at the top of
-`js/opponents.js` - it moves every rival at once.
+## How the difficulty was set
+
+Not by feel. Every event has a headless test harness that drives the real scene
+with a bot and prints a skill curve - what a careless bot, a mid-table bot and a
+good bot actually score on it. Those three profiles were then played through
+whole tournaments while the strength of the field was swept:
+
+| | average score | wins | podium |
+|---|---|---|---|
+| careless | 423 | 0% | 0% |
+| **mid-table** | **607** | **~45%** | 100% |
+| good | 766 | 100% | 100% |
+
+which is the brief's target of a decent player winning roughly half the time.
+The field averages **507** across the eight events at this setting.
+
+Two things came out of doing it this way rather than guessing:
+
+- **Hugo Stiglitz was unbeatable**, and it had nothing to do with the overall
+  level of the field - he won four tournaments in five at *any* setting of
+  `BASE`. His +200 "precision events" bonus was landing on four of the eight,
+  grilling included, and stacking on top of a precision stat that the event
+  weights already paid him for. The brief calls grilling divided attention and
+  says outright that grilling and mowing are mixed, so it came off the list.
+- **Duke Silver's flat 600-780 band** had to come down with the field. His rule
+  is "never fails and never dominates"; once everyone else was tuned beatable,
+  an untouched Duke simply won by default. The band is now `DUKE_MIN`/
+  `DUKE_MAX` in `TUNING`, and it has to move whenever `BASE` does.
+
+Re-run the sweep if you change how an event scores.
 
 Not every event is equally stiff. The rivals are strongest at *The One-Tripper*
 and *Splitting Image* (both weight power, which most of the roster has) and

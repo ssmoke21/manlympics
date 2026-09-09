@@ -15,20 +15,50 @@
   chaotic one (The Hulk) sprays all over the place.
 
   WHERE THE DIFFICULTY KNOBS ARE
-    BASE / PER_POINT ... the 300 and the 55. Raising either makes every
-                         opponent harder to beat across the board.
+    Everything that decides how hard the field is sits in TUNING, below.
+    BASE / PER_POINT ... raising either makes every opponent harder to beat.
+                         BASE is the blunt one: it moves the whole field.
+    DUKE_MIN / DUKE_MAX  his flat band, which has to move with BASE or he wins
+                         by default once the others come down.
     NOISE_BASE ......... how random everyone is before composure is considered.
     WEIGHTS ............ which stats each event rewards. Each row must add up
                          to 1.0.
     The quirk numbers are in QUIRKS, one small function per opponent.
+
+  HOW THESE NUMBERS WERE SET
+    Not by feel. Each event has a headless harness that drives the real scene
+    with a bot, and those harnesses print a skill curve - what a careless bot,
+    a mid-table bot and a good bot actually score. Those three score profiles
+    were then played through whole tournaments against this field while BASE
+    was swept, and the values above are the ones where a mid-table player wins
+    about half the time. Re-run the sweep if you change an event's scoring.
 */
 window.ML = window.ML || {};
 
 ML.opponents = (function () {
-  var BASE = 300;          // what a competitor with all-1 stats scores
-  var PER_POINT = 55;      // how much each point of weighted stat is worth
-  var NOISE_BASE = 40;     // spread before composure
-  var NOISE_PER_COMPOSURE = 12;
+  /*
+     The whole field's strength lives in this one object, so it can be tuned in
+     one place - and measured, which is how the numbers below were arrived at
+     rather than guessed. See the note under TUNING for what they were set from.
+  */
+  var TUNING = {
+    BASE: 195,             // what a competitor with all-1 stats scores
+    PER_POINT: 55,         // how much each point of weighted stat is worth
+    NOISE_BASE: 40,        // spread before composure
+    NOISE_PER_COMPOSURE: 12,
+
+    // Duke's flat band. The brief fixes him at 600-780; that was written when
+    // the rest of the field sat higher, and left alone he simply wins by
+    // default once everyone else comes down. His RULE is "never fails and
+    // never dominates", so the band moves with the field to keep meaning that.
+    DUKE_MIN: 400,
+    DUKE_MAX: 550
+  };
+
+  // Lets the calibration harness sweep these without rewriting the file.
+  function setTuning(o) {
+    for (var k in o) if (o.hasOwnProperty(k)) TUNING[k] = o[k];
+  }
 
   // ---------------------------------------------------------------- the roster
   var ROSTER = [
@@ -105,7 +135,16 @@ ML.opponents = (function () {
 
   // Which events count as what, for the quirks below.
   var POWER_EVENTS = { chopping: 1, groceries: 1, jaropening: 1 };
-  var PRECISION_EVENTS = { creampuffs: 1, parking: 1, pouring: 1, grilling: 1 };
+  /*
+     The precision three. Grilling used to be in here, which made Hugo's +200
+     land on FOUR of the eight events - and since the stat weights already pay
+     him for precision, the bonus was stacking on top of an advantage he had
+     anyway. He won better than four tournaments in five no matter how the rest
+     of the field was tuned. The brief calls grilling divided attention and
+     says outright that grilling and mowing are mixed, so it does not belong
+     here. Arnold's matching -200 comes off the same list.
+  */
+  var PRECISION_EVENTS = { creampuffs: 1, parking: 1, pouring: 1 };
   var DELICATE_EVENTS = { pouring: 1, creampuffs: 1, parking: 1 };
   var CAREFUL_EVENTS = { pouring: 1, creampuffs: 1, parking: 1, grilling: 1 };
 
@@ -146,7 +185,7 @@ ML.opponents = (function () {
     duke: function (score, key, round, flags) {
       // never fails and never dominates
       flags.steady = true;
-      return 600 + Math.random() * 180;
+      return TUNING.DUKE_MIN + Math.random() * (TUNING.DUKE_MAX - TUNING.DUKE_MIN);
     }
   };
 
@@ -181,8 +220,8 @@ ML.opponents = (function () {
     var weighted = o.power * w.power + o.precision * w.precision
       + o.composure * w.composure + o.chaos * w.chaos;
 
-    var base = BASE + PER_POINT * weighted;
-    var sd = NOISE_BASE + (11 - o.composure) * NOISE_PER_COMPOSURE;
+    var base = TUNING.BASE + TUNING.PER_POINT * weighted;
+    var sd = TUNING.NOISE_BASE + (11 - o.composure) * TUNING.NOISE_PER_COMPOSURE;
     var score = base + gaussian(0, sd);
 
     var flags = {};
@@ -205,6 +244,8 @@ ML.opponents = (function () {
   }
 
   return {
+    TUNING: TUNING,
+    setTuning: setTuning,
     roster: ROSTER,
     weightsFor: weightsFor,
     byId: byId,
