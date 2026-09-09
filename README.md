@@ -4,12 +4,13 @@ A pixel-art arcade game where you compete against six opponents across eight
 short events. Every event is a suburban dad chore, treated with the gravity of
 an Olympic final.
 
-**Build status: all eight events, plus the tournament.** The engine, art system,
+**Build status: all eight events, and every mode.** The engine, art system,
 sound, title screen and menus are done, along with every event: *The Pour*,
 *Grill Sergeant*, *Splitting Image*, *Cut Above*, *Death Grip*, *Back It In*,
 *Choux Business* and *The One-Tripper*. Tournament mode runs all eight against
-the six rivals, with standings between events and a podium at the end. Versus
-(two humans on one keyboard) is the remaining mode.
+the six rivals - on your own, or two of you passing the keyboard - with
+standings between events and a podium at the end. Free Play keeps personal
+bests. What is left is a polish pass.
 
 ---
 
@@ -31,8 +32,11 @@ Then open the address it prints.
 
 | | Player 1 | Player 2 |
 |---|---|---|
-| Move / aim | Arrow keys | W A S D |
-| Action | Space | Left Shift |
+| Move / aim | Arrow keys | Arrow keys |
+| Action | Space | Space |
+
+In the two player tournament the players take turns, so they share one set of
+controls rather than splitting the keyboard.
 
 `Enter` confirms on menus. `Escape` pauses. `M` mutes.
 
@@ -42,12 +46,19 @@ No event needs anything beyond the direction keys plus one action button.
 
 ## What's built
 
-- **Tournament mode.** All eight events in order against the six rivals. After
-  each one the opponents' scores tick in one at a time, then a standings screen
-  shows cumulative medal points (10-8-6-5-4-3-2-1) with your row highlighted and
-  the rows sliding to their new places rather than snapping. A podium closes it
-  out. The rivals never actually play the minigames - their scores are rolled
-  from four stats against per-event weights, in `js/opponents.js`.
+- **Tournament mode, one or two players.** All eight events in order against the
+  six rivals. After each one the opponents' scores tick in one at a time, then a
+  standings screen shows cumulative medal points (10-8-6-5-4-3-2-1) with your row
+  highlighted and the rows sliding to their new places rather than snapping. A
+  podium closes it out. The rivals never actually play the minigames - their
+  scores are rolled from four stats against per-event weights, in
+  `js/opponents.js`.
+- **Two player tournament.** Pass and play. Player one plays an event, hands the
+  keyboard over, player two plays the same event, and only then do the rivals
+  post their scores - so it is an eight way table, which is why the points run
+  down to 1 for eighth. **Both players use the same controls**, arrows and space,
+  because they never play at once. The two are told apart by colour throughout:
+  player one pink, player two orange.
 - **Free Play.** Pick any single event and chase a personal best, saved to
   `localStorage`. Versus is still locked.
 - **The Pour**, the beer event: three beers, each poured then chugged. Hold
@@ -217,9 +228,14 @@ nothing to compile.
 
 ## Notes for the next phase
 
-Still to come: **Versus** (two humans on one keyboard, eight-way standings) and
-a polish pass - scene transitions, announcer bursts between events, and
-difficulty balancing.
+Still to come: a polish pass - scene transitions, announcer bursts between
+events, and difficulty balancing.
+
+Note on the brief: it listed *Versus* as a third mode, described as "two humans
+on one keyboard, taking turns, with the six AI opponents also competing and
+eight-way standings". That is a two player tournament, so rather than build a
+separate mode beside Tournament it became a player count on it. Nothing in the
+description was dropped.
 
 On balancing: as it stands the field averages **624** across all eight events,
 and scoring around **730 in every event** wins the tournament about half the

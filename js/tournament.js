@@ -3,15 +3,17 @@
   TOURNAMENT - the eight events run back to back against the six rivals
   ==========================================================================
 
-  All eight events in a fixed order. After each one you get a results screen
-  where the opponents' scores tick in one at a time, then a standings screen
-  showing cumulative medal points. After the eighth, a podium.
+  One player or two. With two it is pass-and-play: player one plays the event,
+  hands the keyboard over, player two plays the same event, and only then do the
+  six rivals post their scores. Both humans use the SAME controls - arrows and
+  space - because they never play at the same time, which is also why not one
+  event file needed changing to support a second player.
 
   HOW SCORING WORKS
-    Every event hands back a raw score out of 1000. All seven competitors are
-    ranked on that raw score and awarded medal points 10-8-6-5-4-3-2-1 for
-    first through eighth. (Seven compete in Tournament; the eighth slot is
-    there for Versus, which adds a second human.)
+    Every event hands back a raw score out of 1000. Everyone in the field is
+    ranked on that raw score and awarded medal points 10-8-6-5-4-3-2-1. Seven
+    compete with one human, eight with two - which is exactly why the points
+    table runs to eight places.
 
     Cumulative points are always RECOMPUTED from the stored raw scores rather
     than added up as we go. That matters, because one of the rivals edits his
@@ -54,6 +56,9 @@ ML.tournament = (function () {
     TICKER_TIME: 0.30,       // how long a score spins before it settles
     VERDICT_DELAY: 0.5,      // beat after the last one before the verdict
 
+    // ---- handing the keyboard over
+    HANDOVER_DWELL: 0.8,     // so nobody skips past it by accident
+
     // ---- standings screen
     ROW_SLIDE: 0.55,         // how long a row takes to move to its new place
     SLIDE_DELAY: 0.45,       // how long the old order sits there first
@@ -71,24 +76,47 @@ ML.tournament = (function () {
     PODIUM_STEP: 0.9
   };
 
+  // A second dad, so the two humans are not the same silhouette on the podium.
+  // Registered at load; ML.sprites.init() in main.js bakes it with the rest.
+  if (ML.sprites && ML.sprites.addFigure) {
+    ML.sprites.addFigure('player2', {
+      skin: 'e', hair: '1', shirt: '7', shirtAlt: '8', pants: '1',
+      shoe: '0', hat: 'visor', hatColor: 'f', build: 0, beard: true
+    });
+  }
+
   // ------------------------------------------------------------------ state
   var state = null;
 
+  function humanName(i) {
+    if (!state || state.humans.length === 1) return 'YOU';
+    return 'PLAYER ' + (i + 1);
+  }
+
   function competitors() {
-    var out = [{ id: 'player', name: 'YOU', isPlayer: true }];
+    var out = [], i;
+    var humans = state ? state.humans : ['p1'];
+    for (i = 0; i < humans.length; i++) {
+      out.push({ id: humans[i], name: humanName(i), isPlayer: true, seat: i });
+    }
     var r = ML.opponents.roster;
-    for (var i = 0; i < r.length; i++) {
+    for (i = 0; i < r.length; i++) {
       out.push({ id: r[i].id, name: r[i].name, isPlayer: false });
     }
     return out;
   }
 
-  function begin() {
+  function begin(players) {
+    var n = (players === 2) ? 2 : 1;
     state = {
+      players: n,
+      humans: n === 2 ? ['p1', 'p2'] : ['p1'],
+      turn: 0,                 // which human is at the keyboard
       round: 0,
       order: CONFIG.EVENT_ORDER.slice(),
       raw: {},            // id -> array of raw scores, one per round
       flags: {},          // id -> array of flag objects from opponents.js
+      rolled: {},         // rounds where the rivals have already posted
       revisedRounds: {},  // rounds already meddled with, so it happens once
       caught: 0,
       stood: 0
@@ -104,6 +132,11 @@ ML.tournament = (function () {
   function active() { return !!state; }
   function abandon() { state = null; }
   function snapshot() { return state; }
+  function players() { return state ? state.players : 1; }
+
+  function launchEvent() {
+    ML.engine.replace(ML.events[state.order[state.round]].scene({ mode: 'tournament' }));
+  }
 
   function launchNext() {
     if (!state) return;
@@ -114,14 +147,14 @@ ML.tournament = (function () {
       ML.engine.replace(podiumScene());
       return;
     }
-    ML.engine.replace(ML.events[state.order[state.round]].scene({ mode: 'tournament' }));
+    state.turn = 0;
+    launchEvent();
   }
 
-  // Called from ML.ui.resultsScene when a tournament is running.
-  function record(payload) {
+  function rollOpponents() {
     var r = state.round;
-    state.raw.player[r] = Math.round(ML.clamp(payload.score || 0, 0, 1000));
-    state.flags.player[r] = {};
+    if (state.rolled[r]) return;
+    state.rolled[r] = true;
     var rolled = ML.opponents.generateAll(state.order[r], r);
     for (var i = 0; i < rolled.length; i++) {
       state.raw[rolled[i].id][r] = rolled[i].score;
@@ -134,7 +167,7 @@ ML.tournament = (function () {
     var c = competitors(), rows = [];
     for (var i = 0; i < c.length; i++) {
       rows.push({
-        id: c[i].id, name: c[i].name, isPlayer: c[i].isPlayer,
+        id: c[i].id, name: c[i].name, isPlayer: c[i].isPlayer, seat: c[i].seat,
         score: state.raw[c[i].id][r] === undefined ? 0 : state.raw[c[i].id][r],
         flags: state.flags[c[i].id][r] || {}
       });
@@ -156,7 +189,7 @@ ML.tournament = (function () {
     var c = competitors(), totals = {}, rawTotals = {}, i, r;
     for (i = 0; i < c.length; i++) { totals[c[i].id] = 0; rawTotals[c[i].id] = 0; }
     for (r = 0; r <= last; r++) {
-      if (state.raw.player[r] === undefined) continue;
+      if (!state.rolled[r]) continue;
       var rows = rankOf(r);
       for (i = 0; i < rows.length; i++) {
         totals[rows[i].id] += rows[i].points;
@@ -166,7 +199,7 @@ ML.tournament = (function () {
     var out = [];
     for (i = 0; i < c.length; i++) {
       out.push({
-        id: c[i].id, name: c[i].name, isPlayer: c[i].isPlayer,
+        id: c[i].id, name: c[i].name, isPlayer: c[i].isPlayer, seat: c[i].seat,
         points: totals[c[i].id], raw: rawTotals[c[i].id]
       });
     }
@@ -181,6 +214,10 @@ ML.tournament = (function () {
       if (list[i].key === key) return list[i].label.replace(/^\d+\s+/, '');
     }
     return (ML.events[key] && ML.events[key].name) || key.toUpperCase();
+  }
+
+  function ordinal(n) {
+    return n + (n === 1 ? 'ST' : n === 2 ? 'ND' : n === 3 ? 'RD' : 'TH');
   }
 
   // ------------------------------------------------------------- draw bits
@@ -199,6 +236,8 @@ ML.tournament = (function () {
       : place === 3 ? 'medal_bronze' : null;
   }
 
+  function seatColour(seat) { return seat === 1 ? P.ORANGE : P.ACCENT; }
+
   // A short word for whatever dramatic thing opponents.js flagged.
   function noteFor(flags) {
     if (!flags) return null;
@@ -208,27 +247,93 @@ ML.tournament = (function () {
     return null;
   }
 
-  // ================================================== EVENT RESULTS SCREEN
+  // ============================================== THE HOOK FROM THE EVENTS
+  /*
+     Every event ends by calling ML.ui.resultsScene, which routes here when a
+     tournament is running. With two players this is where the keyboard changes
+     hands: the first human's score is banked and the same event is set up
+     again, and only when the last human has played do the rivals post.
+  */
   function eventResultScene(payload) {
-    record(payload);
+    var id = state.humans[state.turn];
+    state.raw[id][state.round] = Math.round(ML.clamp(payload.score || 0, 0, 1000));
+    state.flags[id][state.round] = {};
 
+    if (state.turn + 1 < state.humans.length) {
+      var justPlayed = state.turn;
+      state.turn++;
+      return handoverScene(justPlayed);
+    }
+
+    rollOpponents();
+    return resultScene();
+  }
+
+  // ===================================================== PASS THE KEYBOARD
+  function handoverScene(justPlayed) {
+    var t = 0;
+    var r = state.round;
+    var score = state.raw[state.humans[justPlayed]][r];
+    var nextSeat = justPlayed + 1;
+
+    return {
+      key: 'tournament_handover',
+      enter: function () { ML.engine.clearParticles(); ML.sfx.play('confirm'); },
+      exit: function () { ML.sfx.stopAllLoops(); },
+
+      update: function (dt) {
+        t += dt;
+        if (ML.input.justPressed('escape')) { ML.engine.push(ML.ui.pauseScene()); return; }
+        if (t > CONFIG.HANDOVER_DWELL
+          && (ML.input.justPressed('enter') || ML.input.justPressed('space'))) {
+          ML.sfx.play('confirm');
+          launchEvent();
+        }
+      },
+
+      draw: function (ctx) {
+        ML.ui.backdrop(ctx, t, 124);
+        ML.ui.dither(ctx);
+        panel(ctx, 34, 30, 252, 120);
+
+        ML.font.drawTextCentered(eventName(state.order[r]), W / 2, 38, P.STEEL, ctx);
+        ML.font.drawTextCentered('PLAYER ' + (justPlayed + 1) + ' SCORED',
+          W / 2, 50, P.CREAM, ctx);
+        ML.ui.bigText(String(score), W / 2, 60, seatColour(justPlayed), 2, ctx);
+
+        ML.engine.rect(50, 88, 220, 1, P.GRAY, ctx);
+        ML.font.drawTextCentered('PASS THE KEYBOARD', W / 2, 96, P.AMBER, ctx);
+        ML.font.drawTextCentered('PLAYER ' + (nextSeat + 1) + ', SAME EVENT',
+          W / 2, 108, seatColour(nextSeat), ctx);
+        ML.font.drawTextCentered('SAME CONTROLS - ARROWS AND SPACE',
+          W / 2, 120, P.STEEL, ctx);
+
+        if (t > CONFIG.HANDOVER_DWELL && Math.floor(t * 1.6) % 2 === 0) {
+          ML.font.drawTextCentered('PRESS ENTER WHEN YOU ARE READY', W / 2, 136, P.CREAM, ctx);
+        }
+      }
+    };
+  }
+
+  // ================================================== EVENT RESULTS SCREEN
+  function resultScene() {
     var r = state.round;
     var key = state.order[r];
     var t = 0;
-    var order = competitors();                  // player first, then the roster
-    var revealed = 0;                           // how many OPPONENTS have landed
-    var opponentsOnly = order.slice(1);
+    var order = competitors();                  // humans first, then the roster
+    var humanCount = state.humans.length;
+    var opponentsOnly = order.slice(humanCount);
     var ranked = rankOf(r);
     var placeOf = {}, pointsOf = {};
     for (var i = 0; i < ranked.length; i++) {
       placeOf[ranked[i].id] = ranked[i].place;
       pointsOf[ranked[i].id] = ranked[i].points;
     }
-    var shakeDone = {}, saxPlayed = false;
+    var landed = {}, saxPlayed = false;
     var allInAt = CONFIG.REVEAL_START + opponentsOnly.length * CONFIG.REVEAL_GAP;
+    var ROW_SP = 12;
 
     function revealState(idx) {
-      // idx is an index into opponentsOnly
       var startAt = CONFIG.REVEAL_START + idx * CONFIG.REVEAL_GAP;
       if (t < startAt) return 'hidden';
       if (t < startAt + CONFIG.TICKER_TIME) return 'ticking';
@@ -246,9 +351,8 @@ ML.tournament = (function () {
         // land each opponent's score with a noise, and dramatise the flags
         for (var i = 0; i < opponentsOnly.length; i++) {
           var landAt = CONFIG.REVEAL_START + i * CONFIG.REVEAL_GAP + CONFIG.TICKER_TIME;
-          if (t >= landAt && !shakeDone[i]) {
-            shakeDone[i] = true;
-            revealed = Math.max(revealed, i + 1);
+          if (t >= landAt && !landed[i]) {
+            landed[i] = true;
             var id = opponentsOnly[i].id;
             var fl = state.flags[id][r] || {};
             if (fl.catastrophe) { ML.sfx.play('crash'); ML.engine.shake(4, 0.35); }
@@ -260,7 +364,7 @@ ML.tournament = (function () {
         if (!saxPlayed && t >= allInAt) {
           saxPlayed = true;
           if (placeOf.duke <= 3) ML.sfx.play('sax_riff');   // his party trick
-          else if (placeOf.player === 1) ML.sfx.play('fanfare');
+          else if (placeOf.p1 === 1 || placeOf.p2 === 1) ML.sfx.play('fanfare');
         }
 
         if (ML.input.justPressed('escape')) { ML.engine.push(ML.ui.pauseScene()); return; }
@@ -284,22 +388,20 @@ ML.tournament = (function () {
 
         for (var i = 0; i < order.length; i++) {
           var c = order[i];
-          var y = 36 + i * 13;
+          var y = 36 + i * ROW_SP;
           var isPlayer = c.isPlayer;
-          var st = isPlayer ? 'shown' : revealState(i - 1);
+          var st = isPlayer ? 'shown' : revealState(i - humanCount);
 
-          if (isPlayer) ML.engine.rect(14, y - 2, 292, 11, P.STEEL, ctx);
+          if (isPlayer) ML.engine.rect(14, y - 2, 292, 10, P.STEEL, ctx);
 
-          var nameCol = isPlayer ? P.INK : P.CREAM;
-          ML.font.drawText(c.name, 30, y, nameCol, ctx);
+          ML.font.drawText(c.name, 30, y, isPlayer ? P.INK : P.CREAM, ctx);
 
           if (st === 'hidden') {
             ML.font.drawText('- - -', 200, y, P.GRAY, ctx);
           } else if (st === 'ticking') {
             rightText(String((Math.random() * 1000) | 0), 236, y, P.STEEL, ctx);
           } else {
-            var sc = state.raw[c.id][r];
-            rightText(String(sc), 236, y, isPlayer ? P.INK : P.ACCENT, ctx);
+            rightText(String(state.raw[c.id][r]), 236, y, isPlayer ? P.INK : P.ACCENT, ctx);
 
             // medals only once everything is in, or they would be a lie
             if (t >= allInAt) {
@@ -312,18 +414,28 @@ ML.tournament = (function () {
           }
         }
 
-        ML.engine.rect(18, 128, 284, 1, P.GRAY, ctx);
+        ML.engine.rect(18, 138, 284, 1, P.GRAY, ctx);
 
         if (t >= allInAt + CONFIG.VERDICT_DELAY) {
-          var pl = placeOf.player, pts = pointsOf.player;
-          var suffix = pl === 1 ? 'ST' : pl === 2 ? 'ND' : pl === 3 ? 'RD' : 'TH';
-          ML.font.drawTextCentered('YOU FINISHED ' + pl + suffix + '   PLUS ' + pts + ' POINTS',
-            W / 2, 136, pl <= 3 ? P.ACCENT : P.CREAM, ctx);
+          if (humanCount === 1) {
+            ML.font.drawTextCentered(
+              'YOU FINISHED ' + ordinal(placeOf.p1) + '   PLUS ' + pointsOf.p1 + ' POINTS',
+              W / 2, 146, placeOf.p1 <= 3 ? P.ACCENT : P.CREAM, ctx);
+          } else {
+            ML.font.drawTextCentered(
+              'P1 ' + ordinal(placeOf.p1) + ' PLUS ' + pointsOf.p1
+              + '     P2 ' + ordinal(placeOf.p2) + ' PLUS ' + pointsOf.p2,
+              W / 2, 144, P.CREAM, ctx);
+            var lead = placeOf.p1 < placeOf.p2 ? 'PLAYER 1 TAKES THE EVENT'
+              : placeOf.p2 < placeOf.p1 ? 'PLAYER 2 TAKES THE EVENT' : 'DEAD HEAT';
+            ML.font.drawTextCentered(lead, W / 2, 155,
+              placeOf.p1 < placeOf.p2 ? seatColour(0) : seatColour(1), ctx);
+          }
           if (Math.floor(t * 1.6) % 2 === 0) {
-            ML.font.drawTextCentered('PRESS ENTER', W / 2, 160, P.AMBER, ctx);
+            ML.font.drawTextCentered('PRESS ENTER', W / 2, 166, P.AMBER, ctx);
           }
         } else {
-          ML.font.drawTextCentered('THE FIELD IS COMING IN...', W / 2, 136, P.STEEL, ctx);
+          ML.font.drawTextCentered('THE FIELD IS COMING IN...', W / 2, 148, P.STEEL, ctx);
         }
       }
     };
@@ -344,10 +456,15 @@ ML.tournament = (function () {
     var isFinal = !!opts.final;
     var t = 0;
 
+    // After event one there is no previous order to have moved from - the
+    // "before" table is everyone on nought points, which sorts into roster
+    // order and makes every arrow a lie. So the first board just states itself.
     var firstBoard = (state.round === 0);
     var before = firstBoard ? standingsThrough(state.round) : standingsThrough(state.round - 1);
     var beforeIdx = {}, i;
     for (i = 0; i < before.length; i++) beforeIdx[before[i].id] = i;
+
+    var ROW_SP = 15;
 
     // the meddle
     var reviseAt = null, revision = null, flickerFrame = -1, windowFrames = -1;
@@ -374,8 +491,8 @@ ML.tournament = (function () {
     function rows() { return standingsThrough(state.round); }
 
     function slot(id, now) {
-      var to = 0, list = now;
-      for (var k = 0; k < list.length; k++) if (list[k].id === id) { to = k; break; }
+      var to = 0;
+      for (var k = 0; k < now.length; k++) if (now[k].id === id) { to = k; break; }
       var from = beforeIdx[id] === undefined ? to : beforeIdx[id];
       var p = ML.clamp((t - CONFIG.SLIDE_DELAY) / CONFIG.ROW_SLIDE, 0, 1);
       p = p * p * (3 - 2 * p);                        // ease
@@ -441,13 +558,13 @@ ML.tournament = (function () {
 
         for (i = 0; i < list.length; i++) {
           var row = list[i];
-          var y = Math.round(28 + slot(row.id, list) * 17);
+          var y = Math.round(26 + slot(row.id, list) * ROW_SP);
           var moved = (beforeIdx[row.id] === undefined ? i : beforeIdx[row.id]) - i;
 
           // the one frame of colour
           var flicker = (flickerFrame >= 0 && frame === flickerFrame && row.id === 'stalin');
-          if (row.isPlayer) ML.engine.rect(14, y - 3, 292, 15, P.STEEL, ctx);
-          else if (flicker) ML.engine.rect(14, y - 3, 292, 15, P.WOOD_DARK, ctx);
+          if (row.isPlayer) ML.engine.rect(14, y - 3, 292, 14, P.STEEL, ctx);
+          else if (flicker) ML.engine.rect(14, y - 3, 292, 14, P.WOOD_DARK, ctx);
 
           var place = i + 1;
           var m = medalFor(place);
@@ -462,24 +579,25 @@ ML.tournament = (function () {
           // a bar so the gaps are readable at a glance
           var bw = Math.round(96 * (row.points / maxPts));
           ML.engine.rect(150, y + 2, 96, 7, P.INK, ctx);
-          ML.engine.rect(150, y + 2, bw, 7, row.isPlayer ? P.ACCENT : P.STEEL, ctx);
+          ML.engine.rect(150, y + 2, bw, 7,
+            row.isPlayer ? seatColour(row.seat) : P.STEEL, ctx);
           rightText(String(row.points), 296, y + 2, row.isPlayer ? P.INK : P.AMBER, ctx);
         }
 
-        ML.engine.rect(18, 146, 284, 1, P.GRAY, ctx);
+        ML.engine.rect(18, 152, 284, 1, P.GRAY, ctx);
 
         if (verdict === 'caught') {
-          ML.font.drawTextCentered('CAUGHT', W / 2, 152, P.ORANGE, ctx);
+          ML.font.drawTextCentered('CAUGHT', W / 2, 158, P.ORANGE, ctx);
         } else if (!isFinal) {
           var nextKey = state.order[state.round + 1];
           ML.font.drawTextCentered(
             nextKey ? 'NEXT: ' + eventName(nextKey) : 'NEXT: THE PODIUM',
-            W / 2, 152, P.STEEL, ctx);
+            W / 2, 158, P.STEEL, ctx);
         }
 
         if (Math.floor(t * 1.6) % 2 === 0) {
           ML.font.drawTextCentered(isFinal ? 'PRESS ENTER FOR THE TITLE' : 'PRESS ENTER',
-            W / 2, 164, P.AMBER, ctx);
+            W / 2, 168, P.AMBER, ctx);
         }
       }
     };
@@ -488,8 +606,8 @@ ML.tournament = (function () {
   // ========================================================= PODIUM SCREEN
   function podiumScene() {
     var t = 0;
-    var final = standingsThrough(state.order.length - 1);
-    var top3 = final.slice(0, 3);
+    var finalTable = standingsThrough(state.order.length - 1);
+    var top3 = finalTable.slice(0, 3);
     var shown = 0;
     var chime = {};
 
@@ -503,12 +621,10 @@ ML.tournament = (function () {
     var REVEAL_ORDER = [3, 2, 1];
 
     function rowFor(place) { return top3[place - 1]; }
-    function spriteFor(row, place) {
-      var base = row.isPlayer ? 'player' : row.id;
+    function spriteFor(row) {
+      var base = row.isPlayer ? (row.seat === 1 ? 'player2' : 'player') : row.id;
       // Arnold flexes. Everyone else just enjoys it.
-      if (row.id === 'arnold') {
-        return base + (Math.floor(t * 4) % 2 ? '_strain' : '_win');
-      }
+      if (row.id === 'arnold') return base + (Math.floor(t * 4) % 2 ? '_strain' : '_win');
       return base + '_win';
     }
 
@@ -561,12 +677,12 @@ ML.tournament = (function () {
           ML.engine.frameRect(s.cx - 22, top, 44, s.h, P.WOOD_DARK, ctx);
           ML.font.drawTextCentered(String(s.place), s.cx, top + 8, P.CREAM, ctx);
 
-          ML.drawSprite(spriteFor(row, s.place), s.cx - 12, top - 32, null, ctx);
+          ML.drawSprite(spriteFor(row), s.cx - 12, top - 32, null, ctx);
           var m = medalFor(s.place);
           if (m) ML.drawSprite(m, s.cx - 4, top - 46, null, ctx);
 
           ML.font.drawTextShadowCentered(row.name, s.cx, GROUND + 4,
-            row.isPlayer ? P.ACCENT : P.CREAM, ctx);
+            row.isPlayer ? seatColour(row.seat) : P.CREAM, ctx);
           ML.font.drawTextShadowCentered(row.points + ' PTS', s.cx, GROUND + 14, P.STEEL, ctx);
         }
 
@@ -574,9 +690,12 @@ ML.tournament = (function () {
 
         if (shown >= 3) {
           var champ = top3[0];
-          ML.font.drawTextShadowCentered(
-            champ.isPlayer ? 'CHAMPION OF THE SUBURBS' : champ.name + ' TAKES IT',
-            W / 2, 24, champ.isPlayer ? P.AMBER : P.CREAM, ctx);
+          var line;
+          if (!champ.isPlayer) line = champ.name + ' TAKES IT';
+          else if (state.players === 1) line = 'CHAMPION OF THE SUBURBS';
+          else line = champ.name + ' - CHAMPION OF THE SUBURBS';
+          ML.font.drawTextShadowCentered(line, W / 2, 24,
+            champ.isPlayer ? P.AMBER : P.CREAM, ctx);
           if (Math.floor(t * 1.6) % 2 === 0) {
             ML.font.drawTextShadowCentered('PRESS ENTER', W / 2, 170, P.AMBER, ctx);
           }
@@ -591,6 +710,7 @@ ML.tournament = (function () {
     active: active,
     abandon: abandon,
     snapshot: snapshot,
+    players: players,
     competitors: competitors,
     rankOf: rankOf,
     standingsThrough: standingsThrough,

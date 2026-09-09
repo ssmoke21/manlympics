@@ -271,9 +271,11 @@ ML.ui = (function () {
   function modeScene() {
     var t = 0, note = 0;
     var m = menu([
-      { label: 'TOURNAMENT', locked: false, hint: 'ALL EIGHT EVENTS AGAINST ALL SIX RIVALS' },
-      { label: 'FREE PLAY', locked: false, hint: 'ONE EVENT, CHASE A PERSONAL BEST' },
-      { label: 'VERSUS', locked: true, hint: 'TWO ON ONE KEYBOARD - ARRIVES IN PHASE 5' }
+      { label: 'TOURNAMENT', locked: false, players: 1,
+        hint: 'ALL EIGHT EVENTS AGAINST ALL SIX RIVALS' },
+      { label: 'TOURNAMENT - TWO PLAYERS', locked: false, players: 2,
+        hint: 'TAKE TURNS. THE RIVALS STILL PLAY.' },
+      { label: 'FREE PLAY', locked: false, hint: 'ONE EVENT, CHASE A PERSONAL BEST' }
     ]);
     m.sel = 0;
     return {
@@ -284,7 +286,8 @@ ML.ui = (function () {
         var r = m.handle();
         if (r === 'locked') note = 1.6;
         if (r === 'go') {
-          if (m.sel === 0) ML.tournament.begin();
+          var pick = m.items[m.sel];
+          if (pick.players) ML.tournament.begin(pick.players);
           else ML.engine.replace(eventSelectScene());
         }
         if (ML.input.justPressed('escape')) { ML.sfx.play('back'); ML.engine.replace(titleScene()); }
