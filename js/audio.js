@@ -189,6 +189,22 @@ ML.sfx = (function () {
       tone({ freq: 240, freqTo: 120, dur: 0.16, type: 'triangle', vol: 0.28, delay: 0.02 });
       noise({ filter: 'bandpass', freq: 1400, freqTo: 500, dur: 0.18, vol: 0.22, q: 1.4, delay: 0.03 });
     },
+    // paper handles giving out: a dry crumple, then a thump on the drive
+    bagdrop: function () {
+      noise({ filter: 'bandpass', freq: 2600, freqTo: 900, dur: 0.22, vol: 0.22, q: 0.7 });
+      tone({ freq: 150, freqTo: 60, dur: 0.18, type: 'sine', vol: 0.30, delay: 0.04 });
+    },
+    // a dozen eggs meeting the path. Wet, low, and final.
+    splat: function () {
+      noise({ filter: 'lowpass', freq: 900, freqTo: 180, dur: 0.30, vol: 0.42, q: 0.4 });
+      tone({ freq: 200, freqTo: 55, dur: 0.26, type: 'triangle', vol: 0.34 });
+      noise({ filter: 'bandpass', freq: 420, freqTo: 160, dur: 0.45, vol: 0.16, q: 2.2, delay: 0.05 });
+    },
+    // the spring on a screen door, complaining
+    creak: function () {
+      tone({ freq: 260, freqTo: 900, dur: 0.50, type: 'sawtooth', vol: 0.10, filter: 'lowpass', filterFreq: 1300 });
+      noise({ filter: 'bandpass', freq: 1700, freqTo: 2600, dur: 0.50, vol: 0.07, q: 3.0 });
+    },
     tick: function () {
       tone({ freq: 900, dur: 0.03, type: 'square', vol: 0.12 });
     },

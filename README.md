@@ -4,10 +4,10 @@ A pixel-art arcade game where you compete against six opponents across eight
 short events. Every event is a suburban dad chore, treated with the gravity of
 an Olympic final.
 
-**Build status: foundation plus seven events.** The engine, art system, sound,
-title screen and menus are done, along with *The Pour*, *Grill Sergeant*,
-*Splitting Image*, *Cut Above*, *Death Grip*, *Back It In* and *Choux Business*. The tournament frame, the opponents and
-the last event is still to come.
+**Build status: all eight events built.** The engine, art system, sound, title
+screen and menus are done, along with every event: *The Pour*, *Grill Sergeant*,
+*Splitting Image*, *Cut Above*, *Death Grip*, *Back It In*, *Choux Business* and
+*The One-Tripper*. The tournament frame and the opponents are still to come.
 
 ---
 
@@ -82,6 +82,17 @@ No event needs anything beyond the direction keys plus one action button.
   target. Twelve identical wrong-sized puffs genuinely beat twelve scattered
   ones on target, and the title card says so up front. Then a nozzle sweeps over
   each puff: press to stick it in, hold to fill, hold too long and it bursts.
+- **The One-Tripper**, the grocery carry: pick four to twelve bags, then keep him
+  upright all the way to the front door. Balance is an inverted pendulum, so the
+  further he is already tipped the harder it pulls him over - small early
+  corrections work, panicking at the last moment does not. A kerb, a coiled hose
+  and a cat that darts out each shove him, and each is drawn on the path ahead
+  with an arrow showing which way, so the skill is leaning into it BEFORE you get
+  there. Then the screen door costs him a hand for the last few steps. The right
+  number of bags genuinely depends on how good you are: steady hands should take
+  ten, clumsy ones should take seven, and a tall tower sheds a whole row when it
+  goes rather than one bag. Egg bags are worth double and nothing at all if they
+  hit the path.
 - The engine underneath: 320×180 at a whole-number scale, fixed 60 FPS, scene
   stack, particle pool, screen shake, hit-stop.
 - Every sprite, letter and sound generated in code. There is not a single image
@@ -102,7 +113,7 @@ weight it uses. There are no tuning numbers buried anywhere else.
 | Death Grip | `js/events/jaropening.js` | The `JARS` table is the whole difficulty dial — how many inputs each jar needs and how many seconds of grip you get. Then `READY_TIME` (longer look at the sequence) and `SLIP_STALL` |
 | Back It In | `js/events/parking.js` | `BAY_LENGTH` (bigger = easier), `MAX_STEER` (more lock = tighter circle = easier), `WHEELBASE`, `SHUNTS` (allowance per attempt). `BUMP_PENALTY`/`KERB_PENALTY` for what a clout costs |
 | Choux Business | `js/events/creampuffs.js` | `SD_ZERO` (bigger = consistency judged more kindly), `PIPE_RATE` (slower = easier to control), `GHOST_TIME`. Filling: `NOZZLE_SPEED`, `FILL_RATE`, `BURST_AT`. The 70/30 split is `CONSISTENCY_WEIGHT`/`ACCURACY_WEIGHT` |
-| The One-Tripper | `js/events/groceries.js` | *not built yet (Phase 4)* |
+| The One-Tripper | `js/events/groceries.js` | `DRIFT_EXP` decides whether greed is punished - at 1 the cost of extra bags is a straight line and taking the lot is always correct, above 1 every player has a load they cannot hold. Then `TIP_GAIN` (how eagerly he falls), `CORRECT_FORCE`, `DRIFT_BASE` (the wobble with six or fewer). `MULT_STEP` is deliberately small so extra bags pay by BEING extra bags |
 
 Changing one event never requires touching another one. Each event file is
 self-contained and registers itself on `ML.events`.
@@ -194,6 +205,8 @@ nothing to compile.
 ---
 
 ## Notes for the next phase
+
+All eight events are done, so the next phase is the tournament frame.
 
 Phase 2 adds `js/opponents.js` and `js/tournament.js`: the six AI competitors
 (whose scores are generated statistically rather than by actually playing),
