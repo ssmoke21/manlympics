@@ -105,9 +105,12 @@ ML.events.jaropening = (function () {
     for (var y = 0; y < 9; y++) {
       for (var x = 0; x < 9; x++) {
         var lx = x, ly = y;
+        // The apex of the head is where ly is 0, so each rotation has to put
+        // that at the edge the arrow points towards. These two were the wrong
+        // way round, which drew a right-pointing arrow for a LEFT prompt.
         if (dir === 'down') { lx = 8 - x; ly = 8 - y; }
-        else if (dir === 'left') { lx = y; ly = 8 - x; }
-        else if (dir === 'right') { lx = 8 - y; ly = x; }
+        else if (dir === 'left') { lx = 8 - y; ly = x; }
+        else if (dir === 'right') { lx = y; ly = 8 - x; }
         var head = (ly <= 4) && (Math.abs(lx - 4) <= ly);
         var stalk = (ly > 4) && (Math.abs(lx - 4) <= 1);
         if (head || stalk) g[y][x] = '4';

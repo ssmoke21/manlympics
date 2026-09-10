@@ -21,10 +21,20 @@
     one against its neighbours. That is the intended way to play it.
 
   ROUND TWO - FILLING
-    A nozzle slides back and forth over each puff. Press SPACE to stick it in -
-    how close to the middle you were counts - and HOLD to pump the cream in.
-    Let go when it is full. Hold too long and it bursts, and a burst puff is
-    worth nothing.
+    HOLD SPACE to pump cream into each puff and let go when it is full. There
+    is nothing to aim at - it is purely a question of when you stop.
+
+    HOW MUCH EACH PUFF WANTS IS THE SIZE YOU PIPED IT AT. A big puff takes a
+    lot of cream, a mean little one takes hardly any, so the mark moves from
+    puff to puff and round one decides where. Twelve matching puffs give you
+    one fill to learn twelve times; twelve scattered ones give you twelve
+    separate problems. That is the second reason matching pays.
+
+    A gauge under the tray shows the cream going in, with a green band where
+    this puff wants to end up and red where it lets go. The shell swells as it
+    fills and shudders once it is past what it can hold, so a blowout is never
+    a surprise. Stop short and you lose points in proportion; go past the red
+    and the puff is worth nothing at all.
 
   NO CLOCK AT ALL. This one never had one in the brief either. (There is a
   long idle bail-out on each puff purely so the event cannot hang for ever if
@@ -37,8 +47,10 @@
     ACC_ZERO ........... how far the average can be off target before accuracy
                          scores zero.
     GHOST_TIME ......... how long you get to look at the target.
-    NOZZLE_SPEED ....... how fast the filling nozzle sweeps. Slower = easier.
-    FILL_RATE / BURST_AT how quickly cream goes in and when it lets go.
+    FILL_RATE .......... how fast cream goes in. Slower = easier to stop well.
+    FILL_TOLERANCE ..... half the width of the green band. Bigger = easier.
+    FILL_ZERO .......... how far off the mark scores nothing at all.
+    BURST_MARGIN ....... how much you can overfill before it goes.
     CONSISTENCY_WEIGHT / ACCURACY_WEIGHT ... the brief's 70/30 split.
     PIPE_POINTS / FILL_POINTS ... how the two rounds divide the 1000.
 
@@ -71,11 +83,18 @@ ML.events.creampuffs = (function () {
     ACC_ZERO: 0.34,          // how far off target before accuracy scores zero
 
     // ---- filling
-    NOZZLE_SPEED: 1.45,      // sweeps per second
-    NOZZLE_RANGE: 26,        // how far either side of the puff it travels
-    FILL_RATE: 0.95,         // fill units per second
-    BURST_AT: 1.28,          // hold past this and it goes everywhere
-    PLACE_ZERO: 20,          // pixels off centre at which placement scores zero
+    // No aiming here any more. Hold SPACE, watch the gauge, let go in the
+    // band. What makes it a test rather than a metronome is that the band
+    // sits wherever YOUR puff needs it to - a big one holds more cream - so
+    // the mark moves every time and the piping you did decides where.
+    FILL_RATE: 0.42,         // cream units a second while held
+    FILL_TOLERANCE: 0.09,    // half width of the green band, in cream units
+    FILL_ZERO: 0.30,         // how far off the mark before it scores nothing
+    BURST_MARGIN: 0.22,      // overfill by more than this and it goes
+    MIN_CAPACITY: 0.12,      // even a mean little puff holds something
+    SWELL: 0.25,             // how much the shell grows as the cream goes in
+    GAUGE_X: 78, GAUGE_Y: 150, GAUGE_W: 164, GAUGE_H: 9,
+    GAUGE_MAX: 1.32,         // cream units across the whole gauge
 
     // ---- score out of 1000
     PIPE_POINTS: 600,
@@ -154,6 +173,17 @@ ML.events.creampuffs = (function () {
     return ML.sprites.strings(g);
   }
 
+  // The cream going in, drawn inside the shell so you can watch it arrive.
+  // Half the point of the round is being able to see it happen.
+  function makeCream(step) {
+    var g = ML.sprites.grid(PW, PW);
+    var r = 1 + (PUFF_MAX_R - 4) * (step / (SIZE_STEPS - 1));
+    if (r < 1) return ML.sprites.strings(g);
+    ML.sprites.ellipse(g, PC, PC, r, r * 0.72, '4');
+    ML.sprites.ellipse(g, PC - r * 0.3, PC - r * 0.25, r * 0.4, r * 0.28, 'b');
+    return ML.sprites.strings(g);
+  }
+
   function makeTray(w, h) {
     var g = ML.sprites.grid(w, h);
     ML.sprites.rect(g, 0, 0, w, h, '2');
@@ -169,6 +199,7 @@ ML.events.creampuffs = (function () {
     for (var i = 0; i < SIZE_STEPS; i++) {
       ML.sprites.add('cp_puff' + i, makePuff(i, false));
       ML.sprites.add('cp_full' + i, makePuff(i, true));
+      ML.sprites.add('cp_cream' + i, makeCream(i));
     }
     ML.sprites.add('cp_burst', makeBurst());
     ML.sprites.add('cp_bag', makeBag());
@@ -194,11 +225,9 @@ ML.events.creampuffs = (function () {
       settle: 0,
       idle: 0,
 
-      nozzleT: 0,
       fill: 0,
       filling: false,
-      fills: [],            // {amount, place, burst}
-      placeOff: 0,
+      fills: [],            // {amount, burst, cap, fill}
 
       pipeScore: 0, fillScore: 0, consistency: 0, accuracy: 0,
       finalScore: 0
@@ -273,15 +302,24 @@ ML.events.creampuffs = (function () {
     }
 
     // ------------------------------------------------------------ filling
-    function nozzleX() {
-      var tri = Math.abs(((s.nozzleT * CONFIG.NOZZLE_SPEED) % 1) * 2 - 1);
-      return px(s.idx) - CONFIG.NOZZLE_RANGE + tri * CONFIG.NOZZLE_RANGE * 2;
+    /*
+       How much cream this puff wants. It is the size you piped it at, so the
+       mark you are aiming for is one you set yourself in round one - twelve
+       matching puffs give you twelve identical fills to learn, twelve
+       scattered ones give you twelve different problems.
+    */
+    function capOf(i) {
+      var sz = s.sizes[i];
+      if (sz === undefined) sz = CONFIG.TARGET_SIZE;
+      return ML.clamp(sz, CONFIG.MIN_CAPACITY, CONFIG.MAX_SIZE);
     }
+    function burstPoint(i) { return capOf(i) + CONFIG.BURST_MARGIN; }
 
     function finishFill(burst) {
-      var place = ML.clamp(1 - Math.abs(s.placeOff) / CONFIG.PLACE_ZERO, 0, 1);
-      var amount = burst ? 0 : ML.clamp(1 - Math.abs(s.fill - 1) / 0.75, 0, 1);
-      s.fills.push({ amount: amount, place: place, burst: !!burst });
+      var cap = capOf(s.idx);
+      var amount = burst ? 0
+        : ML.clamp(1 - Math.abs(s.fill - cap) / CONFIG.FILL_ZERO, 0, 1);
+      s.fills.push({ amount: amount, burst: !!burst, cap: cap, fill: s.fill });
       if (burst) {
         ML.sfx.play('fizz');
         ML.engine.shake(2, 0.2);
@@ -302,7 +340,7 @@ ML.events.creampuffs = (function () {
       var total = 0;
       for (var i = 0; i < s.fills.length; i++) {
         var f = s.fills[i];
-        total += f.burst ? 0 : (f.amount * 0.65 + f.place * 0.35);
+        total += f.burst ? 0 : f.amount;      // nothing to aim at any more
       }
       s.fillScore = CONFIG.FILL_POINTS * (total / Math.max(1, s.fills.length));
       s.finalScore = Math.round(ML.clamp(s.pipeScore + s.fillScore, 0, 1000));
@@ -312,22 +350,29 @@ ML.events.creampuffs = (function () {
 
     function updateFill(dt) {
       if (s.settle > 0) { s.settle -= dt; return; }
-      s.nozzleT += dt;
 
       var held = ML.input.isDown('space');
       if (held && !s.filling) {
         s.filling = true;
-        s.placeOff = nozzleX() - px(s.idx);      // where he stuck it in
         s.idle = 0;
         ML.sfx.play('pour');
       }
       if (s.filling) {
         s.fill += CONFIG.FILL_RATE * dt;
-        if (s.fill >= CONFIG.BURST_AT) { finishFill(true); return; }
+        // straining before it goes, so the blowout is never a surprise
+        if (s.fill > capOf(s.idx) + CONFIG.FILL_TOLERANCE) {
+          if (Math.random() < 0.5) {
+            ML.engine.spawn({
+              x: px(s.idx) + ML.rand(-8, 8), y: py(s.idx) + ML.rand(-6, 2),
+              vx: ML.rand(-8, 8), vy: -14, life: 0.2, color: P.CREAM, size: 1
+            });
+          }
+        }
+        if (s.fill >= burstPoint(s.idx)) { finishFill(true); return; }
         if (!held) { finishFill(false); return; }
       } else {
         s.idle += dt;
-        if (s.idle > CONFIG.IDLE_BAIL) { s.placeOff = 99; s.fill = 0; finishFill(false); }
+        if (s.idle > CONFIG.IDLE_BAIL) { s.fill = 0; finishFill(false); }
       }
     }
 
@@ -358,6 +403,21 @@ ML.events.creampuffs = (function () {
       if (s.phase === 'pipe' && s.idx < CONFIG.PUFFS && s.size > 0) {
         ML.drawSprite('cp_puff' + stepOf(s.size), px(s.idx) - PC, py(s.idx) - PC, null, ctx);
       }
+
+      // the one being filled: the shell swells and the cream shows through,
+      // and it shudders once it is past what it can hold
+      if (s.phase === 'fill' && s.idx < CONFIG.PUFFS && s.idx < s.sizes.length) {
+        var cap = capOf(s.idx);
+        var strain = s.fill > cap + CONFIG.FILL_TOLERANCE;
+        var jx = strain ? Math.round(Math.sin(s.t * 40)) : 0;
+        var swollen = s.sizes[s.idx] + s.fill * CONFIG.SWELL;
+        ML.drawSprite('cp_puff' + stepOf(swollen),
+          px(s.idx) - PC + jx, py(s.idx) - PC, null, ctx);
+        if (s.fill > 0) {
+          ML.drawSprite('cp_cream' + stepOf(s.fill * 0.85),
+            px(s.idx) - PC + jx, py(s.idx) - PC, null, ctx);
+        }
+      }
     }
 
     function drawGhost(ctx) {
@@ -370,6 +430,41 @@ ML.events.creampuffs = (function () {
           Math.round(cy + Math.sin(th) * r * 0.78), 1, 1, P.ACCENT, ctx);
       }
       ML.font.drawTextShadowCentered('THIS BIG', cx, cy - 30, P.ACCENT, ctx);
+    }
+
+    /*
+       The fill gauge. The green band is where THIS puff wants to be filled to,
+       and it moves from puff to puff because it is set by the size you piped.
+       Past the red and it lets go.
+    */
+    function drawGauge(ctx) {
+      var gx = CONFIG.GAUGE_X, gy = CONFIG.GAUGE_Y;
+      var gw = CONFIG.GAUGE_W, gh = CONFIG.GAUGE_H;
+      var cap = capOf(s.idx);
+      var at = function (v) {
+        return Math.round(gx + gw * ML.clamp(v / CONFIG.GAUGE_MAX, 0, 1));
+      };
+
+      ML.engine.rect(gx - 2, gy - 2, gw + 4, gh + 4, P.INK, ctx);
+      ML.engine.rect(gx, gy, gw, gh, P.CHARCOAL, ctx);
+
+      // where it should end up, and where it lets go
+      var lo = at(cap - CONFIG.FILL_TOLERANCE), hi = at(cap + CONFIG.FILL_TOLERANCE);
+      var bp = at(cap + CONFIG.BURST_MARGIN);
+      ML.engine.rect(bp, gy, gx + gw - bp, gh, P.ORANGE, ctx);
+      ML.engine.rect(lo, gy, hi - lo, gh, P.GRASS, ctx);
+
+      // how much is in there now
+      var end = at(s.fill);
+      if (s.fill > 0) {
+        var inBand = (s.fill >= cap - CONFIG.FILL_TOLERANCE && s.fill <= cap + CONFIG.FILL_TOLERANCE);
+        ML.engine.rect(gx, gy + 2, end - gx, gh - 4,
+          inBand ? P.CREAM : (s.fill > cap + CONFIG.FILL_TOLERANCE ? P.ORANGE : P.AMBER), ctx);
+        ML.engine.rect(end - 1, gy - 2, 2, gh + 4, P.ACCENT, ctx);
+      }
+      ML.engine.frameRect(gx, gy, gw, gh, P.STEEL, ctx);
+      ML.font.drawText('EMPTY', gx - 40, gy + 1, P.STEEL, ctx);
+      ML.font.drawText('POP', gx + gw + 6, gy + 1, P.ORANGE, ctx);
     }
 
     function drawHud(ctx) {
@@ -453,8 +548,10 @@ ML.events.creampuffs = (function () {
           ML.drawSprite('cp_bag', px(s.idx) - 8, py(s.idx) - 26 + bob, null, ctx);
         }
         if (s.phase === 'fill' && s.idx < CONFIG.PUFFS) {
-          var nx = s.filling ? px(s.idx) + s.placeOff : nozzleX();
-          ML.drawSprite('cp_nozzle', Math.round(nx) - 5, py(s.idx) - 26, null, ctx);
+          // straight down into the puff - there is nothing to aim at
+          var nbob = s.filling ? Math.round(Math.sin(s.t * 24)) : Math.round(Math.sin(s.t * 5));
+          ML.drawSprite('cp_nozzle', px(s.idx) - 5, py(s.idx) - 26 + nbob, null, ctx);
+          drawGauge(ctx);
         }
 
         ML.engine.drawParticles(ctx);
@@ -467,16 +564,21 @@ ML.events.creampuffs = (function () {
           ML.font.drawTextShadowCentered('MATCH THE OTHERS', 160, 170, P.STEEL, ctx);
         } else if (s.phase === 'fill') {
           ML.font.drawTextShadowCentered(
-            s.filling ? 'FILLING - LET GO BEFORE IT GOES' : 'SPACE TO STICK IT IN',
-            160, 160, s.filling ? P.AMBER : P.CREAM, ctx);
+            s.filling ? 'LET GO IN THE GREEN' : 'HOLD SPACE TO FILL',
+            160, 138, s.filling ? P.AMBER : P.CREAM, ctx);
+          if (!s.filling) {
+            ML.font.drawTextShadowCentered('A BIGGER PUFF TAKES MORE CREAM',
+              160, 166, P.STEEL, ctx);
+          }
         } else if (s.phase === 'roundcard') {
           ML.ui.dither(ctx, 50, 60, 220, 60);
           ML.engine.rect(52, 62, 216, 56, P.CHARCOAL, ctx);
           ML.engine.frameRect(52, 62, 216, 56, P.CREAM, ctx);
           ML.font.drawTextCentered('MATCHING ' + Math.round(s.consistency * 100) + '%'
             + '    ON TARGET ' + Math.round(s.accuracy * 100) + '%', 160, 72, P.CREAM, ctx);
-          ML.font.drawTextCentered('NOW FILL THEM', 160, 90, P.AMBER, ctx);
-          ML.font.drawTextCentered('SPACE TO INJECT, LET GO BEFORE IT BURSTS', 160, 104, P.STEEL, ctx);
+          ML.font.drawTextCentered('NOW FILL THEM', 160, 88, P.AMBER, ctx);
+          ML.font.drawTextCentered('HOLD SPACE. EACH PUFF HOLDS WHAT ITS', 160, 100, P.STEEL, ctx);
+          ML.font.drawTextCentered('SIZE ALLOWS. STOP IN THE GREEN.', 160, 109, P.STEEL, ctx);
         }
 
         if (s.phase === 'title') {

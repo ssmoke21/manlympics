@@ -75,6 +75,14 @@ ML.tournament = (function () {
     REVISE_AT_MIN: 0.9,      // when the flicker happens, after the rows settle
     REVISE_AT_MAX: 2.1,
     REVISE_WINDOW: 30,       // frames you have to react in
+    REVISE_FLICKER: 3,       // frames the row changes colour for. One frame is
+                             // 16ms, which nobody catches unless they already
+                             // know to watch that row - so it is three.
+    REVISE_MAX_PER_RUN: 1,   // Left uncapped he helped himself on most boards,
+                             // worth three medal points a tournament on average
+                             // and up to nine, which made him the strongest
+                             // rival in the game rather than a running joke.
+                             // Getting caught does not use the allowance up.
 
     // ---- podium
     PODIUM_STEP: 0.9
@@ -123,6 +131,7 @@ ML.tournament = (function () {
       recs: {},           // id -> array of record results, for the BEST! flag
       rolled: {},         // rounds where the rivals have already posted
       revisedRounds: {},  // rounds already meddled with, so it happens once
+      revisions: 0,       // how many have STOOD this run
       caught: 0,
       stood: 0
     };
@@ -482,7 +491,9 @@ ML.tournament = (function () {
     var reviseAt = null, revision = null, flickerFrame = -1, windowFrames = -1;
     var verdict = null;                      // 'caught' | 'stood'
     var frame = 0;
-    if (!isFinal && state.round >= 1 && Math.random() < CONFIG.REVISE_CHANCE) {
+    if (!isFinal && state.round >= 1
+      && state.revisions < CONFIG.REVISE_MAX_PER_RUN
+      && Math.random() < CONFIG.REVISE_CHANCE) {
       var options = [];
       for (i = 0; i < state.round; i++) {
         if (!state.revisedRounds[i] && state.raw.stalin[i] !== undefined
@@ -526,6 +537,7 @@ ML.tournament = (function () {
           state.raw.stalin[revision.round] = Math.round(ML.clamp(
             state.raw.stalin[revision.round] + revision.amount, 0, 1000));
           state.revisedRounds[revision.round] = true;
+          state.revisions++;
         }
 
         if (windowFrames > 0) {
@@ -533,6 +545,7 @@ ML.tournament = (function () {
           if (ML.input.anyPressed()) {
             state.raw.stalin[revision.round] -= revision.amount;
             state.revisedRounds[revision.round] = false;
+            state.revisions--;          // caught does not spend the allowance
             verdict = 'caught';
             state.caught++;
             windowFrames = 0;
@@ -574,7 +587,8 @@ ML.tournament = (function () {
           var moved = (beforeIdx[row.id] === undefined ? i : beforeIdx[row.id]) - i;
 
           // the one frame of colour
-          var flicker = (flickerFrame >= 0 && frame === flickerFrame && row.id === 'stalin');
+          var flicker = (flickerFrame >= 0 && row.id === 'stalin'
+            && frame >= flickerFrame && frame < flickerFrame + CONFIG.REVISE_FLICKER);
           if (row.isPlayer) ML.engine.rect(14, y - 3, 292, 14, P.STEEL, ctx);
           else if (flicker) ML.engine.rect(14, y - 3, 292, 14, P.WOOD_DARK, ctx);
 

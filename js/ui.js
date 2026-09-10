@@ -516,7 +516,14 @@ ML.ui = (function () {
       update: function (dt) {
         t += dt;
         if (t > 0.4 && (ML.input.justPressed('enter') || ML.input.justPressed('space'))) {
+          // Straight back to the event list: in Free Play you are almost always
+          // going again, and bouncing off the title screen every time made
+          // chasing a best score three keypresses longer than it needed to be.
           ML.sfx.play('confirm');
+          ML.engine.replace(eventSelectScene());
+        }
+        if (t > 0.4 && ML.input.justPressed('escape')) {
+          ML.sfx.play('back');
           ML.engine.reset(titleScene());
         }
       },
@@ -545,7 +552,8 @@ ML.ui = (function () {
         }
         ML.font.drawTextCentered('FREE PLAY - NO OPPONENTS', W / 2, y + h - 22, P.GRAY, ctx);
         if (Math.floor(t * 1.6) % 2 === 0) {
-          ML.font.drawTextCentered('PRESS ENTER', W / 2, y + h - 11, P.AMBER, ctx);
+          ML.font.drawTextCentered('ENTER FOR ANOTHER GO.  ESC FOR THE TITLE.',
+            W / 2, y + h - 11, P.AMBER, ctx);
         }
       }
     };

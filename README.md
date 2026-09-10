@@ -62,7 +62,9 @@ No event needs anything beyond the direction keys plus one action button.
   down to 1 for eighth. **Both players use the same controls**, arrows and space,
   because they never play at once. The two are told apart by colour throughout:
   player one pink, player two orange.
-- **Free Play.** Pick any single event and chase a personal best.
+- **Free Play.** Pick any single event and chase a personal best. The result
+  screen drops you straight back on the event list, because in Free Play you
+  are almost always going again.
 - **Records.** A top score for every event, the sum of those eight bests out of
   8000, and the best tournament you have ever finished - points, placing, and
   how many you have won. Records are set from **both** modes, because a good
@@ -111,7 +113,13 @@ No event needs anything beyond the direction keys plus one action button.
   but you are judged on whether the twelve MATCH EACH OTHER, not on hitting the
   target. Twelve identical wrong-sized puffs genuinely beat twelve scattered
   ones on target, and the title card says so up front. Then a nozzle sweeps over
-  each puff: press to stick it in, hold to fill, hold too long and it bursts.
+  each puff you HOLD SPACE and let go when it is full. There is nothing to aim
+  at - what makes it hard is that **how much cream a puff wants is the size you
+  piped it at**, so the mark moves from puff to puff and round one decides
+  where. A gauge shows the cream going in, with a green band for this puff and
+  red where it lets go; the shell swells and shudders before it goes. That is
+  the second reason matching pays: one learned hold works twelve times on
+  matching puffs and is wrong twelve times on scattered ones.
 - **The One-Tripper**, the grocery carry: pick four to twelve bags, then keep him
   upright all the way to the front door. Balance is an inverted pendulum, so the
   further he is already tipped the harder it pulls him over - small early
@@ -139,10 +147,10 @@ weight it uses. There are no tuning numbers buried anywhere else.
 | Splitting Image (chopping) | `js/events/chopping.js` | `TOTAL_SWINGS` (how long the event is). **Too hard to aim?** `SWEET_HALF` (bigger = easier), `STRIKE_SPEED` (smaller = easier). **Aim not mattering enough?** `QUALITY_CROOKED` (smaller = harsher), `COMBO_BONUS`. **Fatigue too punishing?** `FATIGUE_POWER_FLOOR` towards `1`, `FATIGUE_WOBBLE` towards `0` — either switches off on its own |
 | The Pour | `js/events/pouring.js` | `TILT_TOLERANCE` (bigger = easier), `FOAM_SPLIT` (smaller = easier), `POUR_ALLOWANCE` (more beer in the tap = easier). Chug: `CHUG_DRAIN`, `CHUG_PAR`. The whole drunkenness ramp is the `DRUNK` table, one row per beer |
 | Grill Sergeant | `js/events/grilling.js` | `COOK_RATE` (lower = easier), `PERFECT_BAND` (bigger = easier), `START_STAGGER` (bigger = less overlap = easier). Make the tells more obvious with `BUBBLE_AT`/`BUBBLE_END` and `SMOKE_RATE` |
-| Cut Above | `js/events/mowing.js` | `FUEL_MAX` (bigger = easier), `BURN_DRIVE` (smaller = easier), `CUT_RADIUS` (wider deck = easier), `TURN_RATE`/`TURN_LOW` (how tightly it corners). `FUEL_NEEDS_COVERAGE` stops "mow half, keep the petrol" |
+| Cut Above | `js/events/mowing.js` | `FUEL_MAX` (bigger = easier), `BURN_DRIVE` (smaller = easier), `CUT_RADIUS` (wider deck = easier), `TURN_RATE`/`TURN_LOW` (how tightly it corners). `FUEL_NEEDS_COVERAGE` stops "mow half, keep the petrol". **Straight lines are not scored** - see below |
 | Death Grip | `js/events/jaropening.js` | The `JARS` table is the whole difficulty dial — how many inputs each jar needs and how many seconds of grip you get. Then `READY_TIME` (longer look at the sequence) and `SLIP_STALL` |
 | Back It In | `js/events/parking.js` | `BAY_LENGTH` (bigger = easier), `MAX_STEER` (more lock = tighter circle = easier), `WHEELBASE`, `SHUNTS` (allowance per attempt). `BUMP_PENALTY`/`KERB_PENALTY` for what a clout costs |
-| Choux Business | `js/events/creampuffs.js` | `SD_ZERO` (bigger = consistency judged more kindly), `PIPE_RATE` (slower = easier to control), `GHOST_TIME`. Filling: `NOZZLE_SPEED`, `FILL_RATE`, `BURST_AT`. The 70/30 split is `CONSISTENCY_WEIGHT`/`ACCURACY_WEIGHT` |
+| Choux Business | `js/events/creampuffs.js` | `SD_ZERO` (bigger = consistency judged more kindly), `PIPE_RATE` (slower = easier to control), `GHOST_TIME`. Filling: `FILL_RATE` (slower = easier to stop well), `FILL_TOLERANCE` (width of the green band), `BURST_MARGIN` (how far you can overfill). The 70/30 split is `CONSISTENCY_WEIGHT`/`ACCURACY_WEIGHT` |
 | *the rivals* | `js/opponents.js` | Everything is in the `TUNING` block. `BASE` is the blunt dial for the whole field. `DUKE_MIN`/`DUKE_MAX` are his flat band and **must move with `BASE`**, or he wins by default once the others come down. `WEIGHTS` says which stats each event rewards (each row must total 1.0); quirks are one small function each in `QUIRKS` |
 | *records* | `js/records.js` | Which keys are kept and what the overall total is out of |
 | *the tournament* | `js/tournament.js` | `MEDAL_POINTS`, `EVENT_ORDER`, the pacing of the reveals (`REVEAL_GAP`, `TICKER_TIME`, `ROW_SLIDE`) and the announcer (`ANNOUNCE_TIME`, and the `SHOUTS` table) |
@@ -241,6 +249,13 @@ nothing to compile.
 ---
 
 ## Notes
+
+**Does Cut Above want straight lines?** No. The score is coverage out of 800
+plus banked petrol out of 200, and nothing measures how tidy your route was.
+The stripes in the cut grass are decoration. Straight lanes are simply the
+cheapest way to cover a rectangle on one tank, so they win on fuel rather than
+on neatness - overlap the same strip twice and you pay for it in petrol, not in
+style marks.
 
 Note on the brief: it listed *Versus* as a third mode, described as "two humans
 on one keyboard, taking turns, with the six AI opponents also competing and
