@@ -74,7 +74,9 @@ ML.tournament = (function () {
     REVISE_MAX: 200,
     REVISE_AT_MIN: 0.9,      // when the flicker happens, after the rows settle
     REVISE_AT_MAX: 2.1,
-    REVISE_WINDOW: 30,       // frames you have to react in
+    REVISE_WINDOW: 45,       // frames you have to react in. Half a second was
+                             // tight for a thing you are not expecting; this
+                             // is three quarters of one.
     REVISE_FLICKER: 3,       // frames the row changes colour for. One frame is
                              // 16ms, which nobody catches unless they already
                              // know to watch that row - so it is three.
@@ -534,6 +536,13 @@ ML.tournament = (function () {
           // applied straight away and quietly; the only tell is one frame of colour
           flickerFrame = frame;
           windowFrames = CONFIG.REVISE_WINDOW;
+          // A tick, quiet and short. You cannot watch seven rows at once, and
+          // three frames of colour on one of them is not something anybody
+          // spots unless they already know which row to stare at. This says
+          // SOMETHING happened without saying what - which is the whole
+          // point: the mechanic stays unexplained, but it stops being a
+          // thing you can only catch by already knowing about it.
+          ML.sfx.play('tick');
           state.raw.stalin[revision.round] = Math.round(ML.clamp(
             state.raw.stalin[revision.round] + revision.amount, 0, 1000));
           state.revisedRounds[revision.round] = true;

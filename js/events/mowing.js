@@ -107,13 +107,17 @@ ML.events.mowing = (function () {
   var TITLE = {
     number: 4,
     name: 'CUT ABOVE',
+    // The old first line read as a rule you were being marked against, and
+    // nothing in this event measures how tidy your route is. Coverage and
+    // leftover petrol are the entire score, so the card says so.
     joke: [
-      'RULE 12: THE STRIPES MUST BE STRAIGHT.',
-      'ONE TANK OF PETROL. NO SECOND LAP.'
+      'EVERY BLADE, ON ONE TANK OF PETROL.',
+      'THE STRIPES ARE PRIDE. NOT POINTS.'
     ],
     controls: [
       'UP DRIVES.  DOWN REVERSES.  ARROWS STEER.',
-      'SPACE STOPS AND BANKS THE PETROL LEFT.'
+      'SPACE STOPS AND BANKS THE PETROL LEFT.',
+      'SCORED ON GRASS CUT AND PETROL SAVED.'
     ]
   };
 

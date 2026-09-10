@@ -257,6 +257,10 @@ cheapest way to cover a rectangle on one tank, so they win on fuel rather than
 on neatness - overlap the same strip twice and you pay for it in petrol, not in
 style marks.
 
+The event card used to open with RULE 12: THE STRIPES MUST BE STRAIGHT, which
+read as something you were being marked on. It now says the stripes are pride,
+not points, and spells out what is actually scored.
+
 Note on the brief: it listed *Versus* as a third mode, described as "two humans
 on one keyboard, taking turns, with the six AI opponents also competing and
 eight-way standings". That is a two player tournament, so rather than build a
