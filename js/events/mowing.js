@@ -63,7 +63,6 @@ ML.events.mowing = (function () {
 
   var CONFIG = {
     // ---- pacing
-    TITLE_TIME: 3,
     RESULT_TIME: 3,
     SHAME_TIME: 2.6,         // how long the missed patches flash
 
@@ -565,7 +564,7 @@ ML.events.mowing = (function () {
         s.phaseT += dt;
 
         if (s.phase === 'title') {
-          if (s.phaseT >= CONFIG.TITLE_TIME || ML.input.justPressed('enter')) {
+          if (ML.ui.titleDone(s.phaseT)) {
             s.phase = 'mow'; s.phaseT = 0;
             ML.sfx.play('confirm');
             ML.sfx.startLoop('mow');
@@ -644,7 +643,6 @@ ML.events.mowing = (function () {
         }
 
         if (s.phase === 'title') {
-          TITLE.remaining = CONFIG.TITLE_TIME - s.phaseT;
           ML.ui.drawTitleCard(TITLE, s.t, ctx);
         } else if (s.phase === 'result') {
           ML.ui.drawResultCard({

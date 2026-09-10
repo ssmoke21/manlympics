@@ -49,7 +49,6 @@ ML.events.jaropening = (function () {
 
   var CONFIG = {
     // ---- pacing
-    TITLE_TIME: 3,
     RESULT_TIME: 3,
     READY_TIME: 1.3,         // look at the sequence before his grip starts going
     POP_TIME: 1.5,           // lid coming off
@@ -371,7 +370,7 @@ ML.events.jaropening = (function () {
         }
 
         if (s.phase === 'title') {
-          if (s.phaseT >= CONFIG.TITLE_TIME || ML.input.justPressed('enter')) {
+          if (ML.ui.titleDone(s.phaseT)) {
             ML.sfx.play('confirm');
             startJar();
           }
@@ -474,7 +473,6 @@ ML.events.jaropening = (function () {
         drawHud(ctx);
 
         if (s.phase === 'title') {
-          TITLE.remaining = CONFIG.TITLE_TIME - s.phaseT;
           ML.ui.drawTitleCard(TITLE, s.t, ctx);
         } else if (s.phase === 'result') {
           ML.ui.drawResultCard({

@@ -61,7 +61,6 @@ ML.events.grilling = (function () {
 
   var CONFIG = {
     // ---- pacing
-    TITLE_TIME: 3,
     RESULT_TIME: 3,
     END_PAUSE: 1.0,          // beat after the last patty comes off
 
@@ -525,7 +524,7 @@ ML.events.grilling = (function () {
         s.phaseT += dt;
 
         if (s.phase === 'title') {
-          if (s.phaseT >= CONFIG.TITLE_TIME || ML.input.justPressed('enter')) {
+          if (ML.ui.titleDone(s.phaseT)) {
             s.phase = 'play'; s.phaseT = 0;
             ML.sfx.play('confirm');
           }
@@ -584,7 +583,6 @@ ML.events.grilling = (function () {
         }
 
         if (s.phase === 'title') {
-          TITLE.remaining = CONFIG.TITLE_TIME - s.phaseT;
           ML.ui.drawTitleCard(TITLE, s.t, ctx);
         } else if (s.phase === 'result') {
           ML.ui.drawResultCard({

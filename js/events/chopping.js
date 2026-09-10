@@ -93,7 +93,6 @@ ML.events.chopping = (function () {
 
     // ---- pacing (feel only - none of these cost you anything any more,
     //      because with no clock the only currency is swings)
-    TITLE_TIME: 3,           // title card
     RESULT_TIME: 3,          // result card
     SWING_TIME: 0.24,        // axe travel animation
     REACT_TIME: 0.45,        // how long the outcome message hangs around
@@ -640,7 +639,7 @@ ML.events.chopping = (function () {
         s.phaseT += dt;
 
         if (s.phase === 'title') {
-          if (s.phaseT >= CONFIG.TITLE_TIME || ML.input.justPressed('enter')) {
+          if (ML.ui.titleDone(s.phaseT)) {
             setPhase('power');
             ML.sfx.play('confirm');
           }
@@ -687,7 +686,6 @@ ML.events.chopping = (function () {
         }
 
         if (s.phase === 'title') {
-          TITLE.remaining = CONFIG.TITLE_TIME - s.phaseT;
           ML.ui.drawTitleCard(TITLE, s.t, ctx);
         } else if (s.phase === 'result') {
           ML.ui.drawResultCard({

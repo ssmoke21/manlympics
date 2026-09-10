@@ -77,7 +77,6 @@ ML.events.groceries = (function () {
 
   var CONFIG = {
     // ---- pacing
-    TITLE_TIME: 3,
     RESULT_TIME: 3,
     LOAD_IDLE: 25,           // safety only: loads up on its own if nobody picks
     DOOR_IDLE: 9,            // safety only: the door opens on its own
@@ -677,7 +676,7 @@ ML.events.groceries = (function () {
         s.phaseT += dt;
 
         if (s.phase === 'title') {
-          if (s.phaseT >= CONFIG.TITLE_TIME || ML.input.justPressed('enter')) {
+          if (ML.ui.titleDone(s.phaseT)) {
             s.phase = 'load'; s.phaseT = 0; s.idle = 0;
             ML.sfx.play('confirm');
           }
@@ -718,7 +717,6 @@ ML.events.groceries = (function () {
           drawLoad(ctx);
           ML.engine.drawParticles(ctx);
           if (s.phase === 'title') {
-            TITLE.remaining = CONFIG.TITLE_TIME - s.phaseT;
             ML.ui.drawTitleCard(TITLE, s.t, ctx);
           }
           return;

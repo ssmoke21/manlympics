@@ -103,6 +103,24 @@ ML.ui = (function () {
      Both cards are drawn by the event scenes themselves, so an event file never
      has to know about menus - it just calls these two.
   */
+  /*
+     How long the card has to have been up before SPACE will dismiss it.
+     Without it, the very keypress that started the event would skip its own
+     instructions - the menu, the announcer and the handover screen all hand
+     over on a press.
+  */
+  var TITLE_MIN = 0.35;
+
+  /*
+     Every event asks this instead of running its own three second timer. The
+     card stays up until the player says otherwise, because three seconds is
+     not long enough to read a joke and two lines of controls.
+  */
+  function titleDone(phaseT) {
+    if (phaseT < TITLE_MIN) return false;
+    return ML.input.justPressed('space') || ML.input.justPressed('enter');
+  }
+
   function drawTitleCard(info, t, ctx) {
     dither(ctx);
     var x = 22, y = 32, w = W - 44, h = 116;
@@ -125,10 +143,10 @@ ML.ui = (function () {
       ML.font.drawTextCentered(ctrl[j], W / 2, y + 76 + j * 9, P.STEEL, ctx);
     }
 
-    // countdown, inside the card so it never fights with the HUD
-    var left = Math.ceil(info.remaining);
-    ML.font.drawTextCentered(left > 0 ? String(left) : 'GO!', W / 2, y + h - 12,
-      left > 0 ? P.CREAM : P.ACCENT, ctx);
+    // Pulses rather than blinks: an instruction that is invisible half the
+    // time is worse than one that just sits there.
+    var pulse = (Math.floor(t * 2.2) % 2 === 0) ? P.ACCENT : P.CREAM;
+    ML.font.drawTextCentered('PRESS SPACE TO START', W / 2, y + h - 12, pulse, ctx);
   }
 
   function drawResultCard(info, t, ctx) {
@@ -538,6 +556,7 @@ ML.ui = (function () {
     dither: dither,
     bigText: bigText,
     bigTextWavy: bigTextWavy,
+    titleDone: titleDone,
     drawTitleCard: drawTitleCard,
     drawResultCard: drawResultCard,
     menu: menu,

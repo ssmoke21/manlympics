@@ -73,8 +73,8 @@ ML.events.pouring = (function () {
 
   var CONFIG = {
     // ---- pacing
-    TITLE_TIME: 3,
     RESULT_TIME: 3,
+    CHUG_IDLE: 6.0,          // stop drinking for this long and he puts it down
     TALLY_TIME: 2.0,         // the per-beer verdict card
     POUR_END_DELAY: 1.1,     // stop pouring this long and the glass is judged
     RAISE_TIME: 0.7,         // glass coming up to his mouth
@@ -294,7 +294,7 @@ ML.events.pouring = (function () {
       pouring: false,
       wander: 0,
 
-      chugT: 0, chugSpills: 0, lastKey: null, lastPressT: -99, stall: 0,
+      chugT: 0, chugSpills: 0, lastKey: null, lastPressT: -99, stall: 0, chugIdle: 0,
       chinT: 0,
       judgedPour: 0,        // the pour grade, locked in when the glass comes up
       judgedPourBeer: -1,
@@ -323,6 +323,7 @@ ML.events.pouring = (function () {
       s.liquid = 0; s.foam = 0; s.spilled = 0; s.dispensed = 0;
       s.angle = 0; s.angleWanted = 0; s.notPouring = 0; s.pouring = false;
       s.chugT = 0; s.chugSpills = 0; s.lastKey = null; s.lastPressT = -99; s.stall = 0;
+      s.chugIdle = 0;
       setPhase('pour');
     }
 
@@ -426,7 +427,20 @@ ML.events.pouring = (function () {
 
       var hitL = ML.input.justPressed('left');
       var hitR = ML.input.justPressed('right');
-      if (!hitL && !hitR) return;
+
+      // Nothing below this line happens unless a key is pressed, so without
+      // this the beer never ends for a player who has stopped drinking - and
+      // the last sliver of beer can round to nought pixels, which makes a
+      // glass that still has some in it look finished.
+      if (!hitL && !hitR) {
+        s.chugIdle += dt;
+        if (s.chugIdle > CONFIG.CHUG_IDLE) {
+          pop('HE PUTS IT DOWN', P.ORANGE, CONFIG.GLASS_X, CONFIG.GLASS_Y - 68);
+          finishBeer();
+        }
+        return;
+      }
+      s.chugIdle = 0;
 
       var key = hitL ? 'left' : 'right';
       var gap = s.t - s.lastPressT;
@@ -657,7 +671,7 @@ ML.events.pouring = (function () {
         }
 
         if (s.phase === 'title') {
-          if (s.phaseT >= CONFIG.TITLE_TIME || ML.input.justPressed('enter')) {
+          if (ML.ui.titleDone(s.phaseT)) {
             ML.sfx.play('confirm');
             startBeer();
           }
@@ -745,7 +759,6 @@ ML.events.pouring = (function () {
         if (s.phase === 'tally') drawTally(ctx);
 
         if (s.phase === 'title') {
-          TITLE.remaining = CONFIG.TITLE_TIME - s.phaseT;
           ML.ui.drawTitleCard(TITLE, s.t, ctx);
         } else if (s.phase === 'result') {
           ML.ui.drawResultCard({

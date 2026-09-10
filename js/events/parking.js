@@ -56,7 +56,6 @@ ML.events.parking = (function () {
 
   var CONFIG = {
     // ---- pacing
-    TITLE_TIME: 3,
     RESULT_TIME: 3,
     JUDGE_TIME: 2.6,         // the verdict on an attempt
     ATTEMPTS: 2,
@@ -482,7 +481,7 @@ ML.events.parking = (function () {
         s.phaseT += dt;
 
         if (s.phase === 'title') {
-          if (s.phaseT >= CONFIG.TITLE_TIME || ML.input.justPressed('enter')) {
+          if (ML.ui.titleDone(s.phaseT)) {
             ML.sfx.play('confirm');
             startAttempt();
           }
@@ -530,7 +529,6 @@ ML.events.parking = (function () {
         if (s.phase === 'judge') drawJudge(ctx);
 
         if (s.phase === 'title') {
-          TITLE.remaining = CONFIG.TITLE_TIME - s.phaseT;
           ML.ui.drawTitleCard(TITLE, s.t, ctx);
         } else if (s.phase === 'result') {
           ML.ui.drawResultCard({

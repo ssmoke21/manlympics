@@ -52,7 +52,6 @@ ML.events.creampuffs = (function () {
 
   var CONFIG = {
     // ---- pacing
-    TITLE_TIME: 3,
     RESULT_TIME: 3,
     GHOST_TIME: 2.0,         // how long the target outline is up for
     ROUND_CARD: 2.0,         // the beat between piping and filling
@@ -399,7 +398,7 @@ ML.events.creampuffs = (function () {
         s.phaseT += dt;
 
         if (s.phase === 'title') {
-          if (s.phaseT >= CONFIG.TITLE_TIME || ML.input.justPressed('enter')) {
+          if (ML.ui.titleDone(s.phaseT)) {
             s.phase = 'ghost'; s.phaseT = 0;
             ML.sfx.play('confirm');
           }
@@ -481,7 +480,6 @@ ML.events.creampuffs = (function () {
         }
 
         if (s.phase === 'title') {
-          TITLE.remaining = CONFIG.TITLE_TIME - s.phaseT;
           ML.ui.drawTitleCard(TITLE, s.t, ctx);
         } else if (s.phase === 'result') {
           ML.ui.drawResultCard({

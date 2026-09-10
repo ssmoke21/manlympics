@@ -40,6 +40,9 @@ controls rather than splitting the keyboard.
 
 `Enter` confirms on menus. `Escape` pauses. `M` mutes.
 
+Each event opens with a card giving its rules and controls. It **waits for**
+**Space** rather than timing out, so there is as long as you like to read it.
+
 No event needs anything beyond the direction keys plus one action button.
 
 ---
