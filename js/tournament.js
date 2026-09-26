@@ -143,7 +143,11 @@ ML.tournament = (function () {
       state.flags[c[i].id] = [];
       state.recs[c[i].id] = [];
     }
-    launchNext();
+    if (ML.cutscene && ML.cutscene.introScene) {
+      ML.engine.replace(ML.cutscene.introScene({ players: n, then: launchNext }));
+    } else {
+      launchNext();
+    }
   }
 
   function active() { return !!state; }
