@@ -303,7 +303,7 @@ ML.cutscene = (function () {
       ML.engine.rect(0, 124, W, 56, P.INK, ctx);
       ML.engine.rect(0, 124, W, 1, P.CREAM, ctx);
       ML.ui.bigTextWavy('ATTENTION', W / 2, 130, P.ACCENT, 2, t, 1.2, ctx);
-      ML.font.drawTextCentered('ALL FATHERS TO THE DRIVEWAY.', W / 2, 152, P.CREAM, ctx);
+      ML.font.drawTextCentered('ALL MEN TO THE DRIVEWAY.', W / 2, 152, P.CREAM, ctx);
       ML.font.drawTextCentered('BRING YOUR OWN TONGS.', W / 2, 164, P.STEEL, ctx);
     }
 
